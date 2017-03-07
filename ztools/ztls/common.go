@@ -87,7 +87,7 @@ const (
 	extensionSupportedVersions    uint16 = 43
 	extensionNextProtoNeg         uint16 = 13172 // not IANA assigned
 	extensionRenegotiationInfo    uint16 = 0xff01
-	extensionExtendedRandom       uint16 = 0x0028 // not IANA assigned
+	extensionExtendedRandom       uint16 = 25333//0x0028 // not IANA assigned
 	extensionSCT                  uint16 = 18
 )
 
