@@ -306,14 +306,16 @@ func (hc *halfConn) decrypt(b *block) (ok bool, prefixLen int, alertValue alert)
 				payload = payload[8:]
 			}
 
-			var additionalData [13]byte
-			copy(additionalData[:], seq)
-			copy(additionalData[8:], b.data[:3])
-			n := len(payload) - c.Overhead()
-			additionalData[11] = byte(n >> 8)
-			additionalData[12] = byte(n)
+			var additionalData []byte
+			if hc.version < VersionTLS13 {
+				copy(additionalData[:], seq)
+				copy(additionalData[8:], b.data[:3])
+				n := len(payload) - c.Overhead()
+				additionalData[11] = byte(n >> 8)
+				additionalData[12] = byte(n)
+			}
 			var err error
-			payload, err = c.Open(payload[:0], nonce, payload, additionalData[:])
+			payload, err = c.Open(payload[:0], nonce, payload, additionalData)
 			if err != nil {
 				return false, 0, alertBadRecordMAC
 			}
@@ -421,21 +423,34 @@ func (hc *halfConn) encrypt(b *block, explicitIVLen int) (bool, alert) {
 			c.XORKeyStream(payload, payload)
 		case *tlsAead:
 			payloadLen := len(b.data) - recordHeaderLen - explicitIVLen
-			b.resize(len(b.data) + c.Overhead())
+			overhead := c.Overhead()
+			if hc.version >= VersionTLS13 {
+				overhead++
+			}
+			b.resize(len(b.data) + overhead)
 			nonce := hc.seq[:]
 			if c.explicitNonce {
 				nonce = b.data[recordHeaderLen : recordHeaderLen+explicitIVLen]
 			}
-			payload := b.data[recordHeaderLen+explicitIVLen:]
+			payload = b.data[recordHeaderLen+explicitIVLen:]
 			payload = payload[:payloadLen]
 
-			var additionalData [13]byte
-			copy(additionalData[:], hc.seq[:])
-			copy(additionalData[8:], b.data[:3])
-			additionalData[11] = byte(payloadLen >> 8)
-			additionalData[12] = byte(payloadLen)
+			var additionalData []byte
+			if hc.version < VersionTLS13 {
+				copy(additionalData[:], hc.seq[:])
+				copy(additionalData[8:], b.data[:3])
+				additionalData[11] = byte(payloadLen >> 8)
+				additionalData[12] = byte(payloadLen)
+			}
 
-			c.Seal(payload[:0], nonce, payload, additionalData[:])
+			if hc.version >= VersionTLS13 {
+				// opaque type
+				payload = payload[:len(payload)+1]
+				payload[len(payload)-1] = b.data[0]
+				b.data[0] = byte(recordTypeApplicationData)
+			}
+
+			c.Seal(payload[:0], nonce, payload, additionalData)
 		case cbcMode:
 			blockSize := c.BlockSize()
 			if explicitIVLen > 0 {
@@ -613,10 +628,6 @@ Again:
 
 	vers := uint16(b.data[1])<<8 | uint16(b.data[2])
 	n := int(b.data[3])<<8 | int(b.data[4])
-	if c.haveVers && vers != c.vers {
-		c.sendAlert(alertProtocolVersion)
-		return c.in.setErrorLocked(fmt.Errorf("tls: received record with version %x when expecting version %x", vers, c.vers))
-	}
 	if n > maxCiphertext {
 		c.sendAlert(alertRecordOverflow)
 		return c.in.setErrorLocked(fmt.Errorf("tls: oversized record received with length %d", n))
@@ -654,9 +665,28 @@ Again:
 	b.off = off
 	data := b.data[b.off:]
 	if len(data) > maxPlaintext {
-		err := c.sendAlert(alertRecordOverflow)
 		c.in.freeBlock(b)
-		return c.in.setErrorLocked(err)
+		return c.in.setErrorLocked(c.sendAlert(alertRecordOverflow))
+	}
+
+	// After checking the plaintext length, remove 1.3 padding and
+	// extract the real content type.
+	// See https://tools.ietf.org/html/draft-ietf-tls-tls13-18#section-5.4.
+	if c.vers >= VersionTLS13 {
+		i := len(data) - 1
+		for i >= 0 {
+			if data[i] != 0 {
+				break
+			}
+			i--
+		}
+		if i < 0 {
+			c.in.freeBlock(b)
+			return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+		}
+		typ = recordType(data[i])
+		data = data[:i]
+		b.resize(b.off + i) // shrinks, guaranteed not to reallocate
 	}
 
 	switch typ {
