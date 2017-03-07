@@ -141,6 +141,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.signatureAndHashes = supportedSKXSignatureAlgorithms
 	}
+	m.alpnProtocols = make([]string, rand.Intn(5))
+	for i := range m.alpnProtocols {
+		m.alpnProtocols[i] = randomString(rand.Intn(20)+1, rand)
+	}
 	m.keyShares = make([]keyShare, rand.Intn(4))
 	for i := range m.keyShares {
 		m.keyShares[i].group = CurveID(rand.Intn(30000))
@@ -171,6 +175,7 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 			m.nextProtos[i] = randomString(20, rand)
 		}
 	}
+	m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
 
 	if rand.Intn(10) > 5 {
 		m.ocspStapling = true

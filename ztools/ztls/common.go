@@ -80,6 +80,7 @@ const (
 	extensionSupportedCurves      uint16 = 10 // Supported Groups in 1.3 nomenclature
 	extensionSupportedPoints      uint16 = 11
 	extensionSignatureAlgorithms  uint16 = 13
+	extensionALPN                 uint16 = 16
 	extensionExtendedMasterSecret uint16 = 23
 	extensionSessionTicket        uint16 = 35
 	extensionKeyShare             uint16 = 40
