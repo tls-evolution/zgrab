@@ -82,7 +82,7 @@ func (c *Conn) clientHandshake() error {
 		hello.heartbeatMode = heartbeatModePeerAllowed
 	}
 
-	possibleCipherSuites := c.config.cipherSuites()
+	possibleCipherSuites := c.config.cipherSuites(c.vers)
 	hello.cipherSuites = make([]uint16, 0, len(possibleCipherSuites))
 
 	if c.config.ForceSuites {

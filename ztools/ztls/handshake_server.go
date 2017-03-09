@@ -193,11 +193,11 @@ Curves:
 
 	var preferenceList, supportedList []uint16
 	if c.config.PreferServerCipherSuites {
-		preferenceList = c.config.cipherSuites()
+		preferenceList = c.config.cipherSuites(c.vers)
 		supportedList = hs.clientHello.cipherSuites
 	} else {
 		preferenceList = hs.clientHello.cipherSuites
-		supportedList = c.config.cipherSuites()
+		supportedList = c.config.cipherSuites(c.vers)
 	}
 
 	for _, id := range preferenceList {
@@ -247,7 +247,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	}
 
 	// Check that we also support the ciphersuite from the session.
-	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.sessionState.vers, hs.ellipticOk, hs.ecdsaOk)
+	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(c.vers), hs.sessionState.vers, hs.ellipticOk, hs.ecdsaOk)
 	if hs.suite == nil {
 		return false
 	}
@@ -720,6 +720,17 @@ func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, version
 			if candidate == nil {
 				continue
 			}
+
+			if version >= VersionTLS13 && candidate.flags&suiteTLS13 != 0 {
+				return candidate // TODO check as not original TLS 1.3 diff
+				// original diff:
+				// hs.suite = candidate
+				// return true
+			}
+			if version < VersionTLS13 && candidate.flags&suiteTLS13 != 0 {
+				continue
+			}
+
 			// Don't select a ciphersuite which we can't
 			// support for this client.
 			if (candidate.flags&suiteECDHE != 0) && !ellipticOk {
