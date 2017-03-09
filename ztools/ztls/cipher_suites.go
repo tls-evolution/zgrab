@@ -328,7 +328,7 @@ func aeadAESGCM12(key, fixedNonce []byte) *tlsAead {
 	return &tlsAead{&fixedNonceAEAD{nonce1, nonce2, aead}, true}
 }
 
-func aeadAESGCM13(key, fixedNonce []byte) cipher.AEAD {
+func aeadAESGCM13(key, fixedNonce []byte) *tlsAead {
 	aes, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err)
