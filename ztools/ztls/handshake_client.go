@@ -200,9 +200,9 @@ func (c *Conn) clientHandshake() error {
 	c.vers = vers
 	c.haveVers = true
 
-	suite := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
+	suite := mutualCipherSuite(c.config.cipherSuites(c.vers), serverHello.cipherSuite)
 	cipherImplemented := cipherIDInCipherList(serverHello.cipherSuite, implementedCipherSuites)
-	cipherShared := cipherIDInCipherIDList(serverHello.cipherSuite, c.config.cipherSuites())
+	cipherShared := cipherIDInCipherIDList(serverHello.cipherSuite, c.config.cipherSuites(c.vers))
 	if suite == nil {
 		//c.sendAlert(alertHandshakeFailure)
 		if !cipherShared {
