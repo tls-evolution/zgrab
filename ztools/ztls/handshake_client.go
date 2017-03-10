@@ -173,6 +173,12 @@ func (c *Conn) clientHandshake() error {
 		}
 	}
 
+	// TODO not part of cloudflares implementation
+	if hello.vers >= VersionTLS13 {
+		hello.vers = VersionTLS12
+		hello.supportedVersions = append(hello.supportedVersions, VersionTLS13)
+	}
+
 	c.writeRecord(recordTypeHandshake, hello.marshal())
 	c.handshakeLog.ClientHello = hello.MakeLog()
 
