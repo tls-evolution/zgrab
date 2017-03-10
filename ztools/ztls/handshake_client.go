@@ -177,6 +177,9 @@ func (c *Conn) clientHandshake() error {
 	if hello.vers >= VersionTLS13 {
 		hello.vers = VersionTLS12
 		hello.supportedVersions = append(hello.supportedVersions, VersionTLS13)
+		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x10) // draft 16
+		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x11) // draft 17
+		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x12) // draft 18
 	}
 
 	c.writeRecord(recordTypeHandshake, hello.marshal())
