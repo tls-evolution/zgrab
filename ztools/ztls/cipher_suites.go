@@ -311,6 +311,41 @@ func (f *fixedNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]b
 	return f.aead.Open(out, f.openNonce, plaintext, additionalData)
 }
 
+// xoredNonceAEAD wraps an AEAD by XORing in a fixed pattern to the nonce
+// before each call.
+type xorNonceAEAD struct {
+	nonceMask [12]byte
+	aead      cipher.AEAD
+}
+
+func (f *xorNonceAEAD) NonceSize() int        { return 8 }
+func (f *xorNonceAEAD) Overhead() int         { return f.aead.Overhead() }
+func (f *xorNonceAEAD) explicitNonceLen() int { return 0 }
+
+func (f *xorNonceAEAD) Seal(out, nonce, plaintext, additionalData []byte) []byte {
+	for i, b := range nonce {
+		f.nonceMask[4+i] ^= b
+	}
+	result := f.aead.Seal(out, f.nonceMask[:], plaintext, additionalData)
+	for i, b := range nonce {
+		f.nonceMask[4+i] ^= b
+	}
+
+	return result
+}
+
+func (f *xorNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byte, error) {
+	for i, b := range nonce {
+		f.nonceMask[4+i] ^= b
+	}
+	result, err := f.aead.Open(out, f.nonceMask[:], plaintext, additionalData)
+	for i, b := range nonce {
+		f.nonceMask[4+i] ^= b
+	}
+
+	return result, err
+}
+
 func aeadAESGCM12(key, fixedNonce []byte) *tlsAead {
 	aes, err := aes.NewCipher(key)
 	if err != nil {
@@ -340,7 +375,10 @@ func aeadAESGCM13(key, fixedNonce []byte) *tlsAead {
 
 	ret := &xorNonceAEAD{aead: aead}
 	copy(ret.nonceMask[:], fixedNonce)
-	return ret
+	// TODO original diff
+	// return ret
+	// TODO adapted diff
+	return &tlsAead{ret, true} // TODO is the nonce really explicit?
 }
 
 func aeadCHACHA20POLY1305(key, fixedNonce []byte) *tlsAead {
