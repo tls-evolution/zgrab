@@ -83,7 +83,15 @@ func (c *Conn) clientHandshake() error {
 		hello.heartbeatMode = heartbeatModePeerAllowed
 	}
 
-	possibleCipherSuites := c.config.cipherSuites(c.vers)
+	var possibleCipherSuites []uint16
+
+	// only sending the two ciphers 0x1301, 0x1302 makes it worse...
+
+	//if hello.vers >= VersionTLS13 {
+	//	possibleCipherSuites = c.config.cipherSuites(VersionTLS13)
+	//} else {
+		possibleCipherSuites = c.config.cipherSuites(c.vers)
+	//}
 	hello.cipherSuites = make([]uint16, 0, len(possibleCipherSuites))
 
 	if c.config.ForceSuites {
