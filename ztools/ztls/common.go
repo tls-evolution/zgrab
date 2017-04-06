@@ -89,6 +89,7 @@ const (
 	extensionRenegotiationInfo    uint16 = 0xff01
 	extensionExtendedRandom       uint16 = 25333//0x0028 // not IANA assigned
 	extensionSCT                  uint16 = 18
+	extensionPskModes             uint16 = 45
 )
 
 // TLS signaling cipher suite values
@@ -115,6 +116,15 @@ type keyShare struct {
 	group CurveID
 	data  []byte
 }
+
+// TLS 1.3 PSK Key Exchange Mode
+// See https://tools.ietf.org/html/draft-ietf-tls-tls13-18#section-4.2.7
+type PSKMode uint8
+
+const (
+	PSKKE PSKMode = 0
+	PSKDHE PSKMode = 1
+)
 
 // TLS Elliptic Curve Point Formats
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-9
