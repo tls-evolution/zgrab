@@ -17,6 +17,7 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"os"
 	"strconv"
 
 	"github.com/zmap/zgrab/ztools/x509"
@@ -257,6 +258,9 @@ func (c *Conn) clientHandshake() error {
 		finishedHash: newFinishedHash(c.vers, suite),
 		session:      session,
 	}
+
+	fmt.Printf("CH/SH done, version %x suite %x", vers, suite)
+	os.Exit(0)
 
 	hs.finishedHash.Write(hs.hello.marshal())
 	hs.finishedHash.Write(hs.serverHello.marshal())
