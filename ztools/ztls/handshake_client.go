@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/dsa"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/subtle"
 	"encoding/asn1"
@@ -180,6 +181,21 @@ func (c *Conn) clientHandshake() error {
 		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x10) // draft 16
 		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x11) // draft 17
 		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x12) // draft 18
+
+		for _, v := range c.config.curvePreferences() {
+			curve, ok := curveForCurveID(v)
+			if !ok {
+				return errors.New("Unsupported curve")
+			}
+
+			_, x, y, err := elliptic.GenerateKey(curve, c.config.rand())
+			if err != nil {
+				return err
+			}
+
+			ecdhePublic := elliptic.Marshal(curve, x, y)
+			hello.keyShares = append(hello.keyShares, keyShare{v, ecdhePublic})
+		}
 	}
 
 	c.writeRecord(recordTypeHandshake, hello.marshal())
