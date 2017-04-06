@@ -90,6 +90,7 @@ const (
 	extensionExtendedRandom       uint16 = 25333//0x0028 // not IANA assigned
 	extensionSCT                  uint16 = 18
 	extensionPskModes             uint16 = 45
+	extensionCookie               uint16 = 44
 )
 
 // TLS signaling cipher suite values

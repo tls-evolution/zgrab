@@ -33,6 +33,7 @@ type clientHelloMsg struct {
 	keyShares             []keyShare
 	supportedVersions     []uint16
 	pskModes              []PSKMode
+	cookie                []byte
 }
 
 func (m *clientHelloMsg) equal(i interface{}) bool {
@@ -65,7 +66,8 @@ func (m *clientHelloMsg) equal(i interface{}) bool {
 		m.extendedMasterSecret == m1.extendedMasterSecret &&
 		eqKeyShares(m.keyShares, m1.keyShares) &&
 		eqUint16s(m.supportedVersions, m1.supportedVersions) &&
-		eqPSKModes(m.pskModes, m1.pskModes)
+		eqPSKModes(m.pskModes, m1.pskModes) &&
+		bytes.Equal(m.cookie, m1.cookie)
 }
 
 func (m *clientHelloMsg) marshal() []byte {
@@ -145,6 +147,10 @@ func (m *clientHelloMsg) marshal() []byte {
 	}
 	if len(m.pskModes) > 0 {
 		extensionsLength += 1 + len(m.pskModes)
+		numExtensions++
+	}
+	if len(m.cookie) > 0 {
+		extensionsLength += 2 + len(m.cookie)
 		numExtensions++
 	}
 	if numExtensions > 0 {
@@ -408,6 +414,18 @@ func (m *clientHelloMsg) marshal() []byte {
 			z[0] = byte(v)
 			z = z[1:]
 		}
+	}
+	if len(m.cookie) > 0 {
+		z[0] = byte(extensionCookie >> 8)
+		z[1] = byte(extensionCookie)
+		l := 2 + len(m.cookie)
+		z[2] = byte(l >> 8)
+		z[3] = byte(l)
+		l -= 2
+		z[4] = byte(l >> 8)
+		z[5] = byte(l)
+		copy(z[6:], m.cookie)
+		z = z[6 + len(m.cookie):]
 	}
 
 	m.raw = x

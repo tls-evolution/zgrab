@@ -198,6 +198,8 @@ func (c *Conn) clientHandshake() error {
 		}
 
 		hello.pskModes = append(hello.pskModes, PSKDHE)
+
+		hello.cookie = []byte{1, 2, 3, 4}
 	}
 
 	c.writeRecord(recordTypeHandshake, hello.marshal())
