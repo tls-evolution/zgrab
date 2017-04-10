@@ -72,7 +72,7 @@ func (c *Conn) clientHandshake() error {
 		serverName:           c.config.ServerName,
 		supportedCurves:      c.config.curvePreferences(),
 		supportedPoints:      []uint8{pointFormatUncompressed},
-		nextProtoNeg:         len(c.config.NextProtos) > 0,
+		nextProtoNeg:         c.config.maxVersion() < VersionTLS13 && len(c.config.NextProtos) > 0, // TODO do this properly
 		secureRenegotiation:  true,
 		alpnProtocols:        c.config.NextProtos,
 		extendedMasterSecret: c.config.maxVersion() >= VersionTLS10 && c.config.ExtendedMasterSecret,
