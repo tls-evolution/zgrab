@@ -196,6 +196,7 @@ func (c *Conn) clientHandshake() error {
 		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x10) // draft 16
 		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x11) // draft 17
 		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x12) // draft 18
+		hello.supportedVersions = append(hello.supportedVersions, VersionTLS12)
 
 		for _, v := range c.config.curvePreferences() {
 			curve, ok := curveForCurveID(v)
