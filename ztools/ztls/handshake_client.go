@@ -217,7 +217,11 @@ func (c *Conn) clientHandshake() error {
 
 		hello.pskModes = append(hello.pskModes, PSKDHE)
 
-		hello.cookie = []byte{1, 2, 3, 4}
+		// TODO Client only sends cookie if requested by the server in a HelloRetryRequest
+		if false {
+			// TODO cookie value must be copied from HelloRetryRequest
+			hello.cookie = []byte{1, 2, 3, 4}
+		}
 	}
 
 	c.writeRecord(recordTypeHandshake, hello.marshal())
