@@ -91,14 +91,16 @@ func (c *Conn) clientHandshake() error {
 	}
 
 	var possibleCipherSuites []uint16
-
-	// only sending the two ciphers 0x1301, 0x1302 makes it worse...
-
-	//if hello.vers >= VersionTLS13 {
-	//	possibleCipherSuites = c.config.cipherSuites(VersionTLS13)
-	//} else {
-		possibleCipherSuites = c.config.cipherSuites(c.vers)
-	//}
+	// TODO sending TLS 1.3 cipher suites makes the testserver not even responding with an alert ...
+	if hello.vers >= VersionTLS13 {
+		// TODO c.vers is not set to TLS 1.3 which is inconsistent, but currently saves efforts for adapting all functions depending on it.
+		// possibleCipherSuites = c.config.cipherSuites(c.vers)
+		possibleCipherSuites = append(possibleCipherSuites, c.config.cipherSuites(VersionTLS13)...)
+	}
+	// TODO only advertise TLS 1.2 ciphers when we send it in the supported_versions extension
+	if true {
+		possibleCipherSuites = append(possibleCipherSuites, c.config.cipherSuites(c.vers)...)
+	}
 	hello.cipherSuites = make([]uint16, 0, len(possibleCipherSuites))
 
 	if c.config.ForceSuites {
