@@ -255,6 +255,15 @@ func (m *serverHelloMsg) MakeLog() *ServerHello {
 	return sh
 }
 
+func (m *serverHelloMsg13) MakeLog() *ServerHello {
+	sh := new(ServerHello)
+	sh.Version = TLSVersion(m.vers)
+	sh.Random = make([]byte, len(m.random))
+	copy(sh.Random, m.random)
+	sh.CipherSuite = CipherSuite(m.cipherSuite)
+	return sh
+}
+
 func (m *certificateMsg) MakeLog() *Certificates {
 	sc := new(Certificates)
 	if len(m.certificates) >= 1 {

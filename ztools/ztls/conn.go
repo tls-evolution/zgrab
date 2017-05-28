@@ -896,7 +896,9 @@ func (c *Conn) readHandshake() (interface{}, error) {
 	case typeClientHello:
 		m = new(clientHelloMsg)
 	case typeServerHello:
-		if c.vers >= VersionTLS13 {
+		// if c.vers >= VersionTLS13 {
+		sh_version := uint16(data[4])<<8 | uint16(data[5])
+		if sh_version >= VersionTLS13 {
 			m = new(serverHelloMsg13)
 		} else {
 			m = new(serverHelloMsg)
