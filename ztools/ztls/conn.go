@@ -307,6 +307,7 @@ func (hc *halfConn) decrypt(b *block) (ok bool, prefixLen int, alertValue alert)
 			}
 
 			var additionalData []byte
+			additionalData = make([]byte, 13, 13)
 			if hc.version < VersionTLS13 {
 				copy(additionalData[:], seq)
 				copy(additionalData[8:], b.data[:3])
@@ -436,6 +437,7 @@ func (hc *halfConn) encrypt(b *block, explicitIVLen int) (bool, alert) {
 			payload = payload[:payloadLen]
 
 			var additionalData []byte
+			additionalData = make([]byte, 13, 13)
 			if hc.version < VersionTLS13 {
 				copy(additionalData[:], hc.seq[:])
 				copy(additionalData[8:], b.data[:3])
