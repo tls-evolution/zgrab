@@ -534,7 +534,9 @@ func (c *Conn) clientHandshake13(serverHello *serverHelloMsg13, session *ClientS
 	fmt.Printf("CH/SH done, version %x suite %x\n", vers, suite)
 	c.sendAlert(alertInternalError)
 	fmt.Printf("ServerHello raw (hex): %x\n", serverHello.raw)
-	os.Exit(0)
+	// TODO TLS 1.3 handshake not supported yet, aborting here
+	return fmt.Errorf("TLS13")
+	// os.Exit(0)
 
 	hs.finishedHash.Write(hs.hello.marshal())
 	hs.finishedHash.Write(hs.serverHello.marshal())
