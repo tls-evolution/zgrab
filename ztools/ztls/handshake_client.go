@@ -360,10 +360,9 @@ func (c *Conn) clientHandshake() error {
 		// hello.pskModes = append(hello.pskModes, PSKDHE)
 		// hello.cookie = []byte{1, 2, 3, 4}
 
-		c.writeRecord(recordTypeHandshake, firefox_hello)
-	} else {
-		c.writeRecord(recordTypeHandshake, hello.marshal())
 	}
+
+	c.writeRecord(recordTypeHandshake, hello.marshal())
 	c.handshakeLog.ClientHello = hello.MakeLog()
 
 	msg, err := c.readHandshake()
