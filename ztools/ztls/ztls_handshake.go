@@ -48,6 +48,7 @@ type ServerHello struct {
 	ExtendedRandom              []byte            `json:"extended_random,omitempty"`
 	ExtendedMasterSecret        bool              `json:"extended_master_secret"`
 	SignedCertificateTimestamps []ParsedAndRawSCT `json:"scts,omitempty"`
+	Raw                         []byte            `json:"raw,omitempty"`
 }
 
 // SimpleCertificate holds a *x509.Certificate and a []byte for the certificate
@@ -252,6 +253,7 @@ func (m *serverHelloMsg) MakeLog() *ServerHello {
 		}
 	}
 	sh.ExtendedMasterSecret = m.extendedMasterSecret
+	sh.Raw = m.raw
 	return sh
 }
 
@@ -261,6 +263,7 @@ func (m *serverHelloMsg13) MakeLog() *ServerHello {
 	sh.Random = make([]byte, len(m.random))
 	copy(sh.Random, m.random)
 	sh.CipherSuite = CipherSuite(m.cipherSuite)
+	sh.Raw = m.raw
 	return sh
 }
 
