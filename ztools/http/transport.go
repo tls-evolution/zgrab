@@ -154,6 +154,15 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 	pconn, err := t.getConn(cm)
 
 	if err != nil {
+		if err.Error()[len(err.Error())-len("TLS13"):] == "TLS13" {
+			// TODO TLS 1.3 handshake not fully supported yet
+			req.TLSHandshake = pconn.conn.(*ztls.Conn).GetHandshakeLog()
+			// we return a faked response to have access to req later on
+			res := &Response{
+				Request:	req,
+			}
+			return res, err
+		}
 		return nil, err
 	}
 
@@ -371,6 +380,11 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 		// Initiate TLS and check remote host name against certificate.
 		conn = ztls.Client(conn, t.TLSClientConfig)
 		if err = conn.(*ztls.Conn).Handshake(); err != nil {
+			if err.Error()[len(err.Error())-len("TLS13"):] == "TLS13" {
+				// TODO TLS 1.3 handshake not fully supported yet
+				pconn.conn = conn
+				return pconn, err
+			}
 			return nil, err
 		}
 
