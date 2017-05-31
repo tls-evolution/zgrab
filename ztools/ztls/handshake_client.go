@@ -421,7 +421,7 @@ func (c *Conn) clientHandshake() error {
 	}
 
 	// stop here, send alert to peer letting him know that abort is not his fault
-	fmt.Printf("CH/SH done, version %x suite %x\n", vers, suite)
+	// fmt.Printf("CH/SH done, version %x suite %x\n", vers, suite)
 	// c.sendAlert(alertInternalError)
 
 	hs.finishedHash.Write(hs.hello.marshal())
@@ -528,7 +528,7 @@ func (c *Conn) clientHandshake13(serverHello *serverHelloMsg13, session *ClientS
 	}
 
 	// stop here, send alert to peer letting him know that abort is not his fault
-	fmt.Printf("CH/SH done, version %x suite %x\n", vers, suite)
+	// fmt.Printf("CH/SH done, version %x suite %x\n", vers, suite)
 	c.sendAlert(alertInternalError)
 	// TODO TLS 1.3 handshake not supported yet, aborting here
 	return fmt.Errorf("TLS13")
