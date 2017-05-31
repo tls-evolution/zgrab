@@ -424,6 +424,70 @@ func (v TLSVersion) String() string {
 		return "TLSv1.1"
 	case 0x0303:
 		return "TLSv1.2"
+	case 0x7f00:
+		return "TLSv1.3draft0"
+	case 0x7f01:
+		return "TLSv1.3draft1"
+	case 0x7f02:
+		return "TLSv1.3draft2"
+	case 0x7f03:
+		return "TLSv1.3draft3"
+	case 0x7f04:
+		return "TLSv1.3draft4"
+	case 0x7f05:
+		return "TLSv1.3draft5"
+	case 0x7f06:
+		return "TLSv1.3draft6"
+	case 0x7f07:
+		return "TLSv1.3draft7"
+	case 0x7f08:
+		return "TLSv1.3draft8"
+	case 0x7f09:
+		return "TLSv1.3draft9"
+	case 0x7f0a:
+		return "TLSv1.3draft10"
+	case 0x7f0b:
+		return "TLSv1.3draft11"
+	case 0x7f0c:
+		return "TLSv1.3draft12"
+	case 0x7f0d:
+		return "TLSv1.3draft13"
+	case 0x7f0e:
+		return "TLSv1.3draft14"
+	case 0x7f0f:
+		return "TLSv1.3draft15"
+	case 0x7f10:
+		return "TLSv1.3draft16"
+	case 0x7f11:
+		return "TLSv1.3draft17"
+	case 0x7f12:
+		return "TLSv1.3draft18"
+	case 0x7f13:
+		return "TLSv1.3draft19"
+	case 0x7f14:
+		return "TLSv1.3draft20"
+	case 0x7f15:
+		return "TLSv1.3draft21"
+	case 0x7f16:
+		return "TLSv1.3draft22"
+	case 0x7f17:
+		return "TLSv1.3draft23"
+	case 0x7f18:
+		return "TLSv1.3draft24"
+	case 0x7f19:
+		return "TLSv1.3draft25"
+	case 0x7f1a:
+		return "TLSv1.3draft26"
+	case 0x7f1b:
+		return "TLSv1.3draft27"
+	case 0x7f1c:
+		return "TLSv1.3draft28"
+	case 0x7f1d:
+		return "TLSv1.3draft29"
+	case 0x7f1e:
+		return "TLSv1.3draft30"
+	case 0x7f1f:
+		return "TLSv1.3draft31"
 	default:
 		return "unknown"
 	}
