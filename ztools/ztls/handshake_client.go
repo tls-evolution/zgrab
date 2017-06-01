@@ -494,10 +494,6 @@ func (c *Conn) clientHandshake() error {
 		session:      session,
 	}
 
-	// stop here, send alert to peer letting him know that abort is not his fault
-	// fmt.Printf("CH/SH done, version %x suite %x\n", vers, suite)
-	// c.sendAlert(alertInternalError)
-
 	hs.finishedHash.Write(hs.hello.marshal())
 	hs.finishedHash.Write(hs.serverHello.marshal())
 
