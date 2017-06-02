@@ -237,15 +237,18 @@ func (m *clientHelloMsg) marshal() []byte {
 		copy(z[5:], []byte(m.serverName))
 		z = z[l:]
 	}
-	if m.ocspStapling {
-		// RFC 4366, section 3.6
-		z[0] = byte(extensionStatusRequest >> 8)
-		z[1] = byte(extensionStatusRequest)
+	if m.extendedMasterSecret {
+		// https://tools.ietf.org/html/draft-ietf-tls-session-hash-01
+		z[0] = byte(extensionExtendedMasterSecret >> 8)
+		z[1] = byte(extensionExtendedMasterSecret & 0xff)
+		z = z[4:]
+	}
+	if m.secureRenegotiation {
+		z[0] = byte(extensionRenegotiationInfo >> 8)
+		z[1] = byte(extensionRenegotiationInfo & 0xff)
 		z[2] = 0
-		z[3] = 5
-		z[4] = 1 // OCSP type
-		// Two zero valued uint16s for the two lengths.
-		z = z[9:]
+		z[3] = 1
+		z = z[5:]
 	}
 	if len(m.supportedCurves) > 0 {
 		// http://tools.ietf.org/html/rfc4492#section-5.5.1
@@ -291,33 +294,6 @@ func (m *clientHelloMsg) marshal() []byte {
 		copy(z, m.sessionTicket)
 		z = z[len(m.sessionTicket):]
 	}
-	if len(m.signatureAndHashes) > 0 {
-		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
-		// https://tools.ietf.org/html/draft-ietf-tls-tls13-18#section-4.2.3
-		z[0] = byte(extensionSignatureAlgorithms >> 8)
-		z[1] = byte(extensionSignatureAlgorithms)
-		l := 2 + 2*len(m.signatureAndHashes)
-		z[2] = byte(l >> 8)
-		z[3] = byte(l)
-		z = z[4:]
-
-		l -= 2
-		z[0] = byte(l >> 8)
-		z[1] = byte(l)
-		z = z[2:]
-		for _, sigAndHash := range m.signatureAndHashes {
-			z[0] = sigAndHash.hash
-			z[1] = sigAndHash.signature
-			z = z[2:]
-		}
-	}
-	if m.secureRenegotiation {
-		z[0] = byte(extensionRenegotiationInfo >> 8)
-		z[1] = byte(extensionRenegotiationInfo & 0xff)
-		z[2] = 0
-		z[3] = 1
-		z = z[5:]
-	}
 	if len(m.alpnProtocols) > 0 {
 		z[0] = byte(extensionALPN >> 8)
 		z[1] = byte(extensionALPN & 0xff)
@@ -339,33 +315,15 @@ func (m *clientHelloMsg) marshal() []byte {
 		lengths[0] = byte(stringsLength >> 8)
 		lengths[1] = byte(stringsLength)
 	}
-	if m.heartbeatEnabled {
-		z[0] = byte(extensionHeartbeat >> 8)
-		z[1] = byte(extensionHeartbeat)
-		length := 1
-		z[2] = byte(length >> 8)
-		z[3] = byte(length)
-		z[4] = m.heartbeatMode
-		z = z[5:]
-	}
-	if m.extendedRandomEnabled {
-		z[0] = byte(extensionExtendedRandom >> 8)
-		z[1] = byte(extensionExtendedRandom & 0xff)
-		exLen := len(m.extendedRandom)
-		length := 2 + exLen
-		z[2] = byte(length >> 8)
-		z[3] = byte(length)
-		z[4] = byte(exLen >> 8)
-		z[5] = byte(exLen)
-		z = z[6:]
-		copy(z, m.extendedRandom)
-		z = z[exLen:]
-	}
-	if m.extendedMasterSecret {
-		// https://tools.ietf.org/html/draft-ietf-tls-session-hash-01
-		z[0] = byte(extensionExtendedMasterSecret >> 8)
-		z[1] = byte(extensionExtendedMasterSecret & 0xff)
-		z = z[4:]
+	if m.ocspStapling {
+		// RFC 4366, section 3.6
+		z[0] = byte(extensionStatusRequest >> 8)
+		z[1] = byte(extensionStatusRequest)
+		z[2] = 0
+		z[3] = 5
+		z[4] = 1 // OCSP type
+		// Two zero valued uint16s for the two lengths.
+		z = z[9:]
 	}
 	if m.sctEnabled {
 		// https://tools.ietf.org/html/rfc6962#section-3.3.1
@@ -413,6 +371,26 @@ func (m *clientHelloMsg) marshal() []byte {
 			z = z[2:]
 		}
 	}
+	if len(m.signatureAndHashes) > 0 {
+		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+		// https://tools.ietf.org/html/draft-ietf-tls-tls13-18#section-4.2.3
+		z[0] = byte(extensionSignatureAlgorithms >> 8)
+		z[1] = byte(extensionSignatureAlgorithms)
+		l := 2 + 2*len(m.signatureAndHashes)
+		z[2] = byte(l >> 8)
+		z[3] = byte(l)
+		z = z[4:]
+
+		l -= 2
+		z[0] = byte(l >> 8)
+		z[1] = byte(l)
+		z = z[2:]
+		for _, sigAndHash := range m.signatureAndHashes {
+			z[0] = sigAndHash.hash
+			z[1] = sigAndHash.signature
+			z = z[2:]
+		}
+	}
 	if len(m.pskModes) > 0 {
 		z[0] = byte(extensionPskModes >> 8)
 		z[1] = byte(extensionPskModes)
@@ -426,6 +404,28 @@ func (m *clientHelloMsg) marshal() []byte {
 			z[0] = byte(v)
 			z = z[1:]
 		}
+	}
+	if m.heartbeatEnabled {
+		z[0] = byte(extensionHeartbeat >> 8)
+		z[1] = byte(extensionHeartbeat)
+		length := 1
+		z[2] = byte(length >> 8)
+		z[3] = byte(length)
+		z[4] = m.heartbeatMode
+		z = z[5:]
+	}
+	if m.extendedRandomEnabled {
+		z[0] = byte(extensionExtendedRandom >> 8)
+		z[1] = byte(extensionExtendedRandom & 0xff)
+		exLen := len(m.extendedRandom)
+		length := 2 + exLen
+		z[2] = byte(length >> 8)
+		z[3] = byte(length)
+		z[4] = byte(exLen >> 8)
+		z[5] = byte(exLen)
+		z = z[6:]
+		copy(z, m.extendedRandom)
+		z = z[exLen:]
 	}
 	if len(m.cookie) > 0 {
 		z[0] = byte(extensionCookie >> 8)
