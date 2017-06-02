@@ -34,6 +34,7 @@ type clientHelloMsg struct {
 	supportedVersions     []uint16
 	pskModes              []PSKMode
 	cookie                []byte
+	clientHelloPadding    bool // pad ClientHello to at least 512 bytes (rfc7685)
 }
 
 func (m *clientHelloMsg) equal(i interface{}) bool {
@@ -153,9 +154,20 @@ func (m *clientHelloMsg) marshal() []byte {
 		extensionsLength += 2 + len(m.cookie)
 		numExtensions++
 	}
+	clientHelloPaddingLen := 0 // length needs to be determined after full packet length
+	if m.clientHelloPadding {
+		numExtensions++
+	}
 	if numExtensions > 0 {
 		extensionsLength += 4 * numExtensions
 		length += 2 + extensionsLength
+
+		// Note: 4 byte for (type, length) at the beginning are added to length later on
+		if m.clientHelloPadding && (length + 4) < 512 {
+			clientHelloPaddingLen = 512 - (length + 4)
+			extensionsLength += clientHelloPaddingLen
+			length += clientHelloPaddingLen
+		}
 	}
 
 	x := make([]byte, 4+length)
@@ -426,6 +438,14 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[5] = byte(l)
 		copy(z[6:], m.cookie)
 		z = z[6 + len(m.cookie):]
+	}
+	if m.clientHelloPadding {
+		z[0] = byte(extensionClientHelloPadding >> 8)
+		z[1] = byte(extensionClientHelloPadding)
+		l := clientHelloPaddingLen
+		z[2] = byte(l >> 8)
+		z[3] = byte(l)
+		z = z[4 + clientHelloPaddingLen:] // bytes are already 0-initialized
 	}
 
 	m.raw = x
