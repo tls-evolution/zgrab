@@ -321,7 +321,7 @@ func (c *Conn) clientHandshake() error {
 		// 	0x01, // status type
 		// 	0x00, 0x00, // len
 		// 	0x00, 0x00, // len
-		// TODO extension not supported by ztls
+		hello.ocspStapling = true
 
 		// 0x00, 0x12, // signed certificate timestamp
 		// 	0x00, 0x00, // len
@@ -429,7 +429,6 @@ func (c *Conn) clientHandshake() error {
 
 		// not used in captured Firefox TLS 1.3 ClientHello
 		hello.nextProtoNeg = false
-		hello.ocspStapling = false
 		hello.heartbeatEnabled = false
 		hello.extendedRandomEnabled = false
 		hello.cookie = nil
