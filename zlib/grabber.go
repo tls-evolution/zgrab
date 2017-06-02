@@ -337,7 +337,7 @@ func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, st
 		}
 
 		if err != nil {
-			if err.Error()[len(err.Error())-len("TLS13"):] == "TLS13" {
+			if ztls.IsTLS13notImplementedAbortError(err) {
 				// TODO We intentionally aborted the TLS 1.3 handshake as it is not supported yet
 				return err
 			}
