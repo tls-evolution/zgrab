@@ -145,7 +145,7 @@ func makeNetDialer(c *Config) func(string, string) (net.Conn, error) {
 	}
 }
 
-func makeTLSConfig(config *Config, urlHost string) *tls.Config {
+func makeTLSConfig(config *Config, urlHost string, sni string) *ztls.Config {
 	tlsConfig := new(tls.Config)
 	tlsConfig.InsecureSkipVerify = true
 	tlsConfig.MinVersion = tls.VersionSSL30
@@ -196,7 +196,11 @@ func makeTLSConfig(config *Config, urlHost string) *tls.Config {
 		tlsConfig.ForceSessionTicketExt = true
 	}
 	if !config.NoSNI && urlHost != "" {
-		tlsConfig.ServerName = urlHost
+		if sni != "" {
+			tlsConfig.ServerName = sni
+		} else {
+			tlsConfig.ServerName = urlHost
+		}
 	}
 	if config.ExternalClientHello != nil {
 		tlsConfig.ExternalClientHello = config.ExternalClientHello
@@ -236,12 +240,12 @@ func redirectsToLocalhost(host string) bool {
 	return false
 }
 
-func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, string) error {
+func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) func(string, string, string) error {
 	g := func(urlHost, endpoint, httpHost string) (err error) {
 
 		var tlsConfig *tls.Config
 		if config.TLS {
-			tlsConfig = makeTLSConfig(config, httpHost)
+			tlsConfig = makeTLSConfig(config, urlHost, target.Domain)
 		}
 
 		transport := &http.Transport{
@@ -279,7 +283,8 @@ func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, st
 			}
 
 			if req.URL.Scheme == "https" && transport.TLSClientConfig == nil {
-				transport.TLSClientConfig = makeTLSConfig(config, req.URL.Host)
+				// TODO check if sni is set correctly
+				transport.TLSClientConfig = makeTLSConfig(config, req.URL.Host, req.URL.Host)
 			}
 
 			return nil
@@ -678,7 +683,7 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 		}
 	} else {
 		grabData := GrabData{HTTP: new(HTTP)}
-		httpGrabber := makeHTTPGrabber(config, &grabData)
+		httpGrabber := makeHTTPGrabber(config, &grabData, target)
 		port := strconv.FormatUint(uint64(config.Port), 10)
 		t := time.Now()
 		var rhost string
