@@ -141,7 +141,7 @@ func makeNetDialer(c *Config) func(string, string) (net.Conn, error) {
 	}
 }
 
-func makeTLSConfig(config *Config, urlHost string) *ztls.Config {
+func makeTLSConfig(config *Config, urlHost string, sni string) *ztls.Config {
 	tlsConfig := new(ztls.Config)
 	tlsConfig.InsecureSkipVerify = true
 	tlsConfig.MinVersion = ztls.VersionSSL30
@@ -192,7 +192,11 @@ func makeTLSConfig(config *Config, urlHost string) *ztls.Config {
 		tlsConfig.ForceSessionTicketExt = true
 	}
 	if !config.NoSNI && urlHost != "" {
-		tlsConfig.ServerName = urlHost
+		if sni != "" {
+			tlsConfig.ServerName = sni
+		} else {
+			tlsConfig.ServerName = urlHost
+		}
 	}
 
 	return tlsConfig
@@ -208,12 +212,12 @@ func containsPort(host string) bool {
 	return strings.LastIndex(host, ":") > strings.LastIndex(host, "]")
 }
 
-func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, string) error {
+func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) func(string, string, string) error {
 	g := func(urlHost, endpoint, httpHost string) (err error) {
 
 		var tlsConfig *ztls.Config
 		if config.TLS {
-			tlsConfig = makeTLSConfig(config, urlHost)
+			tlsConfig = makeTLSConfig(config, urlHost, target.Domain)
 		}
 
 		transport := &http.Transport{
@@ -248,7 +252,8 @@ func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, st
 			}
 
 			if req.URL.Scheme == "https" && transport.TLSClientConfig == nil {
-				transport.TLSClientConfig = makeTLSConfig(config, req.URL.Host)
+				// TODO check if sni is set correctly
+				transport.TLSClientConfig = makeTLSConfig(config, req.URL.Host, req.URL.Host)
 			}
 
 			return nil
@@ -590,7 +595,7 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 		}
 	} else {
 		grabData := GrabData{HTTP: new(HTTP)}
-		httpGrabber := makeHTTPGrabber(config, &grabData)
+		httpGrabber := makeHTTPGrabber(config, &grabData, target)
 		port := strconv.FormatUint(uint64(config.Port), 10)
 		t := time.Now()
 		var rhost string
