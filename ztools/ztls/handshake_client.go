@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"crypto/dsa"
 	"crypto/ecdsa"
-	"crypto/elliptic"
+	// "crypto/elliptic"
 	"crypto/rsa"
 	"crypto/subtle"
 	"encoding/asn1"
@@ -200,20 +200,27 @@ func (c *Conn) clientHandshake() error {
 		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x12) // draft 18
 		hello.supportedVersions = append(hello.supportedVersions, VersionTLS12)
 
-		for _, v := range c.config.curvePreferences() {
-			curve, ok := curveForCurveID(v)
-			if !ok {
-				return errors.New("Unsupported curve")
-			}
+		/* TODO re-enable keyshare calculation when not replaying the Firefox ClientHello
+		 * anymore. As long as we replay the Firefox ClientHello there is no need to
+		 * calculate the keyshares. Disabling it saves us a huge amount of CPU work.
+		 */
+		/* TODO For full handshake measurements we should consider to calculate
+		 * the keyshares once and reuse them for all connections.
+		 */
+		// for _, v := range c.config.curvePreferences() {
+		// 	curve, ok := curveForCurveID(v)
+		// 	if !ok {
+		// 		return errors.New("Unsupported curve")
+		// 	}
 
-			_, x, y, err := elliptic.GenerateKey(curve, c.config.rand())
-			if err != nil {
-				return err
-			}
+		// 	_, x, y, err := elliptic.GenerateKey(curve, c.config.rand())
+		// 	if err != nil {
+		// 		return err
+		// 	}
 
-			ecdhePublic := elliptic.Marshal(curve, x, y)
-			hello.keyShares = append(hello.keyShares, keyShare{v, ecdhePublic})
-		}
+		// 	ecdhePublic := elliptic.Marshal(curve, x, y)
+		// 	hello.keyShares = append(hello.keyShares, keyShare{v, ecdhePublic})
+		// }
 
 		hello.pskModes = append(hello.pskModes, PSKDHE)
 
