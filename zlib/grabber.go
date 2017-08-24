@@ -42,6 +42,8 @@ import (
 type GrabTarget struct {
 	Addr   net.IP
 	Domain string
+	ComsysSource string
+	ComsysDate   string
 }
 
 type grabTargetDecoder struct {
@@ -64,6 +66,11 @@ func (gtd *grabTargetDecoder) DecodeNext() (interface{}, error) {
 	// Check for a domain
 	if len(record) >= 2 {
 		target.Domain = record[1]
+	}
+	// Check for comsys rabbit-mq information
+	if len(record) >= 4 {
+		target.ComsysSource = record[2]
+		target.ComsysDate = record[3]
 	}
 	return target, nil
 }
@@ -582,6 +589,8 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 				Time:           t,
 				Error:          dialErr,
 				ErrorComponent: "connect",
+				ComsysSource:   target.ComsysSource,
+				ComsysDate:     target.ComsysDate,
 			}
 		}
 		err := grabber(conn)
@@ -592,6 +601,8 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 			Data:           conn.grabData,
 			Error:          err,
 			ErrorComponent: conn.erroredComponent,
+			ComsysSource:   target.ComsysSource,
+			ComsysDate:     target.ComsysDate,
 		}
 	} else {
 		grabData := GrabData{HTTP: new(HTTP)}
@@ -613,6 +624,8 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 			Time:   t,
 			Data:   grabData,
 			Error:  err,
+			ComsysSource:   target.ComsysSource,
+			ComsysDate:     target.ComsysDate,
 		}
 	}
 }
