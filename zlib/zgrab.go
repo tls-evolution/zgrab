@@ -37,6 +37,8 @@ type Grab struct {
 	Data           GrabData
 	Error          error
 	ErrorComponent string
+	ComsysSource   string
+	ComsysDate     string
 }
 
 type encodedGrab struct {
@@ -46,6 +48,8 @@ type encodedGrab struct {
 	Data           *GrabData `json:"data,omitempty"`
 	Error          *string   `json:"error,omitempty"`
 	ErrorComponent string    `json:"error_component,omitempty"`
+	ComsysSource   string    `json:"comsys-source,omitempty"`
+	ComsysDate     string    `json:"comsys-date,omitempty"`
 }
 
 type GrabData struct {
@@ -83,6 +87,8 @@ func (g *Grab) MarshalJSON() ([]byte, error) {
 		Data:           &g.Data,
 		Error:          errString,
 		ErrorComponent: g.ErrorComponent,
+		ComsysSource:   g.ComsysSource,
+		ComsysDate:     g.ComsysDate,
 	}
 	return json.Marshal(obj)
 }
