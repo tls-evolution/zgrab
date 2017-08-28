@@ -362,8 +362,9 @@ zgrab_base = Record({
     "data":SubRecord({}),
     "error":String(),
     "error_component":String()
-    "comsys-source":String(required=True)
-    "comsys-date":String(required=True)
+    "comsys-source":String()
+    "comsys-date":String()
+    "comsys-input":String()
 })
 
 zgrab_banner = Record({
