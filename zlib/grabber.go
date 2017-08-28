@@ -44,6 +44,7 @@ type GrabTarget struct {
 	Domain string
 	ComsysSource string
 	ComsysDate   string
+	ComsysInput  string
 }
 
 type grabTargetDecoder struct {
@@ -51,6 +52,7 @@ type grabTargetDecoder struct {
 }
 
 func (gtd *grabTargetDecoder) DecodeNext() (interface{}, error) {
+	// gtd.reader.LazyQuotes = true
 	record, err := gtd.reader.Read()
 	if err != nil {
 		return nil, err
@@ -71,6 +73,10 @@ func (gtd *grabTargetDecoder) DecodeNext() (interface{}, error) {
 	if len(record) >= 4 {
 		target.ComsysSource = record[2]
 		target.ComsysDate = record[3]
+	}
+	// Check if the full dns json info from comsys rabbit-mq was added
+	if len(record) >= 5 {
+		target.ComsysInput = record[4]
 	}
 	return target, nil
 }
@@ -591,6 +597,7 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 				ErrorComponent: "connect",
 				ComsysSource:   target.ComsysSource,
 				ComsysDate:     target.ComsysDate,
+				ComsysInput:    target.ComsysInput,
 			}
 		}
 		err := grabber(conn)
@@ -603,6 +610,7 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 			ErrorComponent: conn.erroredComponent,
 			ComsysSource:   target.ComsysSource,
 			ComsysDate:     target.ComsysDate,
+			ComsysInput:    target.ComsysInput,
 		}
 	} else {
 		grabData := GrabData{HTTP: new(HTTP)}
@@ -626,6 +634,7 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 			Error:  err,
 			ComsysSource:   target.ComsysSource,
 			ComsysDate:     target.ComsysDate,
+			ComsysInput:    target.ComsysInput,
 		}
 	}
 }
