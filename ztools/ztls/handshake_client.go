@@ -195,9 +195,9 @@ func (c *Conn) clientHandshake() error {
 	if hello.vers >= VersionTLS13 {
 		hello.vers = VersionTLS12
 		hello.supportedVersions = append(hello.supportedVersions, VersionTLS13)
-		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x10) // draft 16
-		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x11) // draft 17
-		hello.supportedVersions = append(hello.supportedVersions, 0x7f00 | 0x12) // draft 18
+		hello.supportedVersions = append(hello.supportedVersions, 0x7f00|0x10) // draft 16
+		hello.supportedVersions = append(hello.supportedVersions, 0x7f00|0x11) // draft 17
+		hello.supportedVersions = append(hello.supportedVersions, 0x7f00|0x12) // draft 18
 		hello.supportedVersions = append(hello.supportedVersions, VersionTLS12)
 
 		/* TODO re-enable keyshare calculation when not replaying the Firefox ClientHello
@@ -229,9 +229,6 @@ func (c *Conn) clientHandshake() error {
 			// TODO cookie value must be copied from HelloRetryRequest
 			hello.cookie = []byte{1, 2, 3, 4}
 		}
-
-
-
 
 		// Here we set up the ClientHello as replay of a clientHello captured with Firefox Nightly
 		// The hex bytes in the comments represent the bytes of the captured Firefox Nightly TLS 1.3 ClientHello
@@ -399,24 +396,24 @@ func (c *Conn) clientHandshake() error {
 		// 		0x02, 0x01, // algorithm 11
 		// TODO select only those supported by zlib
 		hello.signatureAndHashes = []signatureAndHash{
-			{ 0x03, 0x04 },
-			{ 0x03, 0x05 },
-			{ 0x03, 0x06 },
-			{ 0x04, 0x08 },
-			{ 0x05, 0x08 },
-			{ 0x06, 0x08 },
-			{ 0x01, 0x04 },
-			{ 0x01, 0x05 },
-			{ 0x01, 0x06 },
-			{ 0x03, 0x02 },
-			{ 0x01, 0x02 },
+			{0x03, 0x04},
+			{0x03, 0x05},
+			{0x03, 0x06},
+			{0x04, 0x08},
+			{0x05, 0x08},
+			{0x06, 0x08},
+			{0x01, 0x04},
+			{0x01, 0x05},
+			{0x01, 0x06},
+			{0x03, 0x02},
+			{0x01, 0x02},
 		}
 
 		// 0x00, 0x2d, // psk key exchange modes
 		// 	0x00, 0x02, // len
 		// 	0x01, // psk key exchange modes length
 		// 	0x01, // mode: PSK with (EC)DHE key establishment (psk_dhe_ke)
-		hello.pskModes = []PSKMode{ PSKDHE }
+		hello.pskModes = []PSKMode{PSKDHE}
 
 		// 0x00, 0x15, // padding
 		// 	0x00, 0xb9, // len
@@ -441,7 +438,7 @@ func (c *Conn) clientHandshake() error {
 		hello.cookie = nil
 
 	}
-
+retry:
 	c.writeRecord(recordTypeHandshake, hello.marshal())
 	c.handshakeLog.ClientHello = hello.MakeLog()
 
@@ -512,13 +509,13 @@ func (c *Conn) clientHandshake() error {
 	}
 
 	hs := &clientHandshakeState{
-		c:            c,
-		serverHello:  serverHello,
-		serverHello13:  nil,
-		hello:        hello,
-		suite:        suite,
-		finishedHash: newFinishedHash(c.vers, suite),
-		session:      session,
+		c:             c,
+		serverHello:   serverHello,
+		serverHello13: nil,
+		hello:         hello,
+		suite:         suite,
+		finishedHash:  newFinishedHash(c.vers, suite),
+		session:       session,
 	}
 
 	hs.finishedHash.Write(hs.hello.marshal())
@@ -614,14 +611,14 @@ func (c *Conn) clientHandshake13(serverHello *serverHelloMsg13, session *ClientS
 	}
 
 	hs := &clientHandshakeState{
-		c:            c,
+		c: c,
 		// serverHello:  serverHello,
-		serverHello:  nil,
-		serverHello13:  serverHello,
-		hello:        hello,
-		suite:        suite,
-		finishedHash: newFinishedHash(c.vers, suite),
-		session:      session,
+		serverHello:   nil,
+		serverHello13: serverHello,
+		hello:         hello,
+		suite:         suite,
+		finishedHash:  newFinishedHash(c.vers, suite),
+		session:       session,
 	}
 
 	// stop here, send alert to peer letting him know that abort is not his fault

@@ -163,7 +163,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		length += 2 + extensionsLength
 
 		// Note: 4 byte for (type, length) at the beginning are added to length later on
-		if m.clientHelloPadding && (length + 4) < 512 {
+		if m.clientHelloPadding && (length+4) < 512 {
 			clientHelloPaddingLen = 512 - (length + 4)
 			extensionsLength += clientHelloPaddingLen
 			length += clientHelloPaddingLen
@@ -437,7 +437,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[4] = byte(l >> 8)
 		z[5] = byte(l)
 		copy(z[6:], m.cookie)
-		z = z[6 + len(m.cookie):]
+		z = z[6+len(m.cookie):]
 	}
 	if m.clientHelloPadding {
 		z[0] = byte(extensionClientHelloPadding >> 8)
@@ -445,7 +445,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		l := clientHelloPaddingLen
 		z[2] = byte(l >> 8)
 		z[3] = byte(l)
-		z = z[4 + clientHelloPaddingLen:] // bytes are already 0-initialized
+		z = z[4+clientHelloPaddingLen:] // bytes are already 0-initialized
 	}
 
 	m.raw = x
