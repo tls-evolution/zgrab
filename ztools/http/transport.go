@@ -216,7 +216,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		// custom dialers. Let them opt-in themselves via
 		// http2.ConfigureTransport so we don't surprise them
 		// by modifying their tls.Config. Issue 14275.
-		//return
+		return
 	}
 	t2, err := http2configureTransport(t)
 	if err != nil {
