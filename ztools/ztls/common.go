@@ -55,6 +55,7 @@ const (
 	typeServerHello         uint8 = 2
 	typeHelloVerifyRequest  uint8 = 3
 	typeNewSessionTicket    uint8 = 4
+	typeHelloRetryRequest   uint8 = 6
 	typeEncryptedExtensions uint8 = 8
 	typeCertificate         uint8 = 11
 	typeServerKeyExchange   uint8 = 12

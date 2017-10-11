@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"crypto/dsa"
 	"crypto/ecdsa"
-	// "crypto/elliptic"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/subtle"
 	"encoding/asn1"
@@ -456,6 +456,27 @@ func (c *Conn) clientHandshake() error {
 	serverHello13, ok := msg.(*serverHelloMsg13)
 	if ok {
 		return c.clientHandshake13(serverHello13, session, hello, cacheKey)
+	}
+	helloRetryRequest, ok := msg.(*helloRetryRequestMsg)
+	if ok {
+		if helloRetryRequest.cookie != nil {
+			copy(hello.cookie, helloRetryRequest.cookie)
+		}
+
+		curve, ok := curveForCurveID(helloRetryRequest.keyShare.group)
+		if !ok {
+			return tls13notImplementedAbortError() // TLS1.3 with unsupported curve
+		}
+
+		_, x, y, err := elliptic.GenerateKey(curve, c.config.rand())
+		if err != nil {
+			return err
+		}
+
+		ecdhePublic := elliptic.Marshal(curve, x, y)
+		hello.keyShares = []keyShare{keyShare{helloRetryRequest.keyShare.group, ecdhePublic}}
+		hello.raw = nil // prevent using outdated, cached copy
+		goto retry
 	}
 
 	serverHello, ok := msg.(*serverHelloMsg)

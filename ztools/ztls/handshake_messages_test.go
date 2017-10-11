@@ -25,6 +25,7 @@ var tests = []interface{}{
 	&newSessionTicketMsg{},
 	&sessionState{},
 	&serverHelloMsg13{},
+	&helloRequestMsg{},
 	&encryptedExtensionsMsg{},
 	&certificateMsg13{},
 }
@@ -198,6 +199,18 @@ func (*serverHelloMsg13) Generate(rand *rand.Rand, size int) reflect.Value {
 
 	return reflect.ValueOf(m)
 }
+
+/*
+func (*helloRequestMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &helloRequestMsg{}
+	m.vers = uint16(rand.Intn(65536))
+	m.cipherSuite = uint16(rand.Int31())
+	m.keyShare.group = CurveID(rand.Intn(30000))
+	m.keyShare.data = randomBytes(rand.Intn(300), rand)
+	m.signatureAlgorithms = true
+
+	return reflect.ValueOf(m)
+}*/
 
 func (*encryptedExtensionsMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &encryptedExtensionsMsg{}

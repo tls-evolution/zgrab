@@ -1322,6 +1322,108 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 	return true
 }
 
+type helloRetryRequestMsg struct {
+	raw            []byte
+	vers           uint16
+	hasCipherSuite bool
+	cipherSuite    uint16
+	keyShare       keyShare
+	cookie         []byte
+}
+
+func (m *helloRetryRequestMsg) equal(i interface{}) bool {
+	m1, ok := i.(*helloRetryRequestMsg)
+	if !ok {
+		return false
+	}
+
+	return bytes.Equal(m.raw, m1.raw) &&
+		m.vers == m1.vers &&
+		m.cipherSuite == m1.cipherSuite &&
+		m.hasCipherSuite == m1.hasCipherSuite &&
+		m.keyShare.group == m1.keyShare.group &&
+		bytes.Equal(m.keyShare.data, m1.keyShare.data)
+}
+
+func (m *helloRetryRequestMsg) marshal() []byte {
+	if m.raw != nil {
+		return m.raw
+	}
+
+	/*
+		x := make([]byte, 4+length)
+		x[0] = typeHelloRetryRequest
+		x[1] = uint8(length >> 16)
+		x[2] = uint8(length >> 8)
+		x[3] = uint8(length)
+		x[2] = uint8(m.vers >> 8)
+		x[3] = uint8(m.vers)
+		x[4] = uint8(m.cipherSuite >> 8)
+		x[5] = uint8(m.cipherSuite)
+
+		z := x[10:]x[4] = uint8(m.vers >> 8)
+		x[5] = uint8(m.vers)
+		x[8] = uint8(len(z) >> 8)
+		x[9] = uint8(len(z))
+
+		m.raw = x
+		return x
+	*/
+	panic("Not implemented yet")
+}
+
+func (m *helloRetryRequestMsg) unmarshal(data []byte) bool {
+	if len(data) < 10 {
+		return false
+	}
+
+	m.raw = data
+	m.vers = uint16(data[4])<<8 | uint16(data[5])
+	if m.vers >= 0x7F13 {
+		m.hasCipherSuite = true
+		m.cipherSuite = uint16(data[6])<<8 | uint16(data[7])
+		data = data[8:]
+	} else {
+		m.hasCipherSuite = false
+		data = data[6:]
+	}
+
+	extensionsLength := int(data[0])<<8 | int(data[1])
+	data = data[2:]
+
+	if len(data) != extensionsLength {
+		return false
+	}
+
+	for len(data) != 0 {
+		if len(data) < 4 {
+			return false
+		}
+		extension := uint16(data[0])<<8 | uint16(data[1])
+		length := int(data[2])<<8 | int(data[3])
+		data = data[4:]
+		if len(data) < length {
+			return false
+		}
+
+		switch extension {
+		default:
+			return false
+		case extensionCookie:
+			copy(m.cookie, data[0:length-1]) // copy includes length prefix
+		case extensionKeyShare:
+			//  draft-ietf-tls-tls13.html#key-share contains only group for hello_retry
+			if length != 2 {
+				return false
+			}
+			m.keyShare.group = CurveID(data[0])<<8 | CurveID(data[1])
+		}
+		data = data[length:]
+	}
+
+	return true
+}
+
 type certificateMsg struct {
 	raw          []byte
 	certificates [][]byte
