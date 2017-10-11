@@ -15,26 +15,26 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zmap/zgrab/zlib"
 	"github.com/zmap/zgrab/ztools/processing"
 	"github.com/zmap/zgrab/ztools/x509"
 	"github.com/zmap/zgrab/ztools/zlog"
-	"github.com/zmap/zgrab/ztools/ztls"
+	tls "github.com/zmap/zgrab/ztools/ztls"
 )
 
 // Command-line flags
 var (
-	encoding                      string
 	outputFileName, inputFileName string
 	logFileName, metadataFileName string
 	messageFileName               string
@@ -45,6 +45,8 @@ var (
 	timeout                       uint
 	tlsVersion                    string
 	rootCAFileName                string
+	prometheusAddress             string
+	clientHelloFileName           string
 )
 
 // Module configurations
@@ -60,11 +62,11 @@ var (
 // Pre-main bind flags to variables
 func init() {
 
-	flag.StringVar(&config.Encoding, "encoding", "string", "Encode banner as string|hex|base64")
 	flag.StringVar(&outputFileName, "output-file", "-", "Output filename, use - for stdout")
 	flag.StringVar(&inputFileName, "input-file", "-", "Input filename, use - for stdin")
 	flag.StringVar(&metadataFileName, "metadata-file", "-", "File to record banner-grab metadata, use - for stdout")
 	flag.StringVar(&logFileName, "log-file", "-", "File to log to, use - for stderr")
+	flag.StringVar(&prometheusAddress, "prometheus", "", "Address to use for Prometheus server (e.g. localhost:8080). If empty, Prometheus is disabled.")
 	flag.BoolVar(&config.LookupDomain, "lookup-domain", false, "Input contains only domain names")
 	flag.StringVar(&interfaceName, "interface", "", "Network interface to send on")
 	flag.UintVar(&portFlag, "port", 80, "Port to grab on")
@@ -81,6 +83,7 @@ func init() {
 	flag.StringVar(&config.HTTP.ProxyDomain, "http-proxy-domain", "", "Send a CONNECT <domain> first")
 	flag.IntVar(&config.HTTP.MaxSize, "http-max-size", 256, "Max kilobytes to read in response to an HTTP request")
 	flag.IntVar(&config.HTTP.MaxRedirects, "http-max-redirects", 0, "Max number of redirects to follow")
+	flag.BoolVar(&config.HTTP.FollowLocalhostRedirects, "follow-localhost-redirects", true, "Follow HTTP redirects to localhost")
 	flag.BoolVar(&config.TLSExtendedRandom, "tls-extended-random", false, "send extended random extension")
 	flag.BoolVar(&config.SignedCertificateTimestampExt, "signed-certificate-timestamp", true, "request SCTs during TLS handshake")
 
@@ -95,6 +98,8 @@ func init() {
 	flag.BoolVar(&config.Fox, "fox", false, "Send some Niagara Fox Tunneling data")
 	flag.BoolVar(&config.S7, "s7", false, "Send some Siemens S7 data")
 	flag.BoolVar(&config.NoSNI, "no-sni", false, "Do not send domain name in TLS handshake regardless of whether known")
+
+	flag.StringVar(&clientHelloFileName, "raw-client-hello", "", "Provide a raw ClientHello to be sent; only the SNI will be rewritten")
 
 	flag.BoolVar(&config.ExportsOnly, "export-ciphers", false, "Send only export ciphers")
 	flag.BoolVar(&config.ExportsDHOnly, "export-dhe-ciphers", false, "Send only export DHE ciphers")
@@ -120,14 +125,15 @@ func init() {
 	flag.BoolVar(&config.FTP, "ftp", false, "Read FTP banners")
 	flag.BoolVar(&config.FTPAuthTLS, "ftp-authtls", false, "Collect FTPS certificates in addition to FTP banners")
 	flag.BoolVar(&config.DNP3, "dnp3", false, "Read DNP3 banners")
-	flag.BoolVar(&config.SSH.SSH, "ssh", false, "SSH scan")
-	flag.StringVar(&config.SSH.Client, "ssh-client", "", "Mimic behavior of a specific SSH client")
-	flag.StringVar(&config.SSH.KexAlgorithms, "ssh-kex-algorithms", "", "Set SSH Key Exchange Algorithms")
-	flag.StringVar(&config.SSH.HostKeyAlgorithms, "ssh-host-key-algorithms", "", "Set SSH Host Key Algorithms")
-	flag.StringVar(&config.SSH.FixedKexValue, "ssh-kex-value", "", "Set SSH DH kex value in hexadecimal")
-	flag.BoolVar(&config.SSH.NegativeOne, "ssh-negative-one", false, "Set SSH DH kex value to -1 in the selected group")
 	flag.BoolVar(&config.Telnet, "telnet", false, "Read telnet banners")
 	flag.IntVar(&config.TelnetMaxSize, "telnet-max-size", 65536, "Max bytes to read for telnet banner")
+
+	// Flags for XSSH scanner
+	flag.BoolVar(&config.XSSH.XSSH, "xssh", false, "Use the x/crypto SSH scanner")
+
+	// Flags for SMB scanner
+	flag.BoolVar(&config.SMB.SMB, "smb", false, "Scan for SMB")
+	flag.IntVar(&config.SMB.Protocol, "smb-protocol", 1, "Specify which SMB protocol to scan for")
 
 	flag.Parse()
 
@@ -139,26 +145,6 @@ func init() {
 	// Stop the lowliest idiot from using this to DoS people
 	if config.ConnectionsPerHost > 50 || config.ConnectionsPerHost < 1 {
 		zlog.Fatalf("--connections-per-host must be in the range [0,50]")
-	}
-
-	// Validate SSH related flags
-	if config.SSH.SSH {
-		if _, ok := config.SSH.GetClientImplementation(); !ok {
-			zlog.Fatalf("Unknown SSH client %s", config.SSH.Client)
-		}
-		if _, err := config.SSH.MakeKexNameList(); err != nil {
-			zlog.Fatalf("Bad SSH Key Exchange Algorithms: %s", err.Error())
-		}
-		if _, err := config.SSH.MakeHostKeyNameList(); err != nil {
-			zlog.Fatalf("Bad SSH Host Key Algorithms: %s", err.Error())
-		}
-		if len(config.SSH.FixedKexValue) > 0 {
-			b, err := hex.DecodeString(config.SSH.FixedKexValue)
-			if err != nil {
-				zlog.Fatalf("Bad SSH kex value (must be hex): %s", err.Error())
-			}
-			config.SSH.FixedKexBytes = append([]byte{0x00}, b...)
-		}
 	}
 
 	// Validate HTTP
@@ -189,19 +175,19 @@ func init() {
 
 		switch tv {
 		case "SSLV3", "SSLV30", "SSLV3.0":
-			config.TLSVersion = ztls.VersionSSL30
+			config.TLSVersion = tls.VersionSSL30
 			tlsVersion = "SSLv3"
 		case "TLSV1", "TLSV10", "TLSV1.0":
-			config.TLSVersion = ztls.VersionTLS10
+			config.TLSVersion = tls.VersionTLS10
 			tlsVersion = "TLSv1.0"
 		case "TLSV11", "TLSV1.1":
-			config.TLSVersion = ztls.VersionTLS11
+			config.TLSVersion = tls.VersionTLS11
 			tlsVersion = "TLSv1.1"
 		case "", "TLSV12", "TLSV1.2":
-			config.TLSVersion = ztls.VersionTLS12
+			config.TLSVersion = tls.VersionTLS12
 			tlsVersion = "TLSv1.2"
 		case "TLSV13", "TLSV1.3":
-			config.TLSVersion = ztls.VersionTLS13
+			config.TLSVersion = tls.VersionTLS13
 			tlsVersion = "TLSv1.3"
 		default:
 			zlog.Fatal("Invalid SSL/TLS versions")
@@ -219,6 +205,15 @@ func init() {
 
 	if config.SMTPHelp || config.EHLO {
 		config.SMTP = true
+	}
+
+	if config.SMTP && !config.EHLO {
+		name, err := os.Hostname()
+		if err != nil {
+			zlog.Fatalf("unable to get hostname for EHLO: %s", err.Error())
+		}
+		config.EHLODomain = name
+		config.EHLO = true
 	}
 
 	if config.SMTP && (config.IMAP || config.POP3) {
@@ -246,16 +241,12 @@ func init() {
 		zlog.Fatal("Must specify one of --tls or --starttls for --heartbleed")
 	}
 
-	encoding = strings.ToLower(config.Encoding)
-	// Check output encoding
-	switch encoding {
-	case "string":
-	case "base64":
-	case "hex":
-	default:
-		zlog.Fatalf("Invalid encoding '%s'", config.Encoding)
+	// Validate SMB
+	if config.SMB.SMB {
+		if config.SMB.Protocol != 1 {
+			zlog.Fatal("Currently only smbv1 is supported")
+		}
 	}
-	config.Encoding = encoding
 
 	// Validate port
 	if portFlag > 65535 {
@@ -346,16 +337,40 @@ func init() {
 	}
 	logger := zlog.New(logFile, "banner-grab")
 	config.ErrorLog = logger
+
+	// Open TLS ClientHello, if applicable
+	if clientHelloFileName != "" {
+		if clientHello, err := ioutil.ReadFile(clientHelloFileName); err != nil {
+			zlog.Fatal(err)
+		} else {
+			config.ExternalClientHello = clientHello
+		}
+	}
 }
 
 func main() {
 	runtime.GOMAXPROCS(config.GOMAXPROCS)
+	if prometheusAddress != "" {
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			if err := http.ListenAndServe(prometheusAddress, nil); err != nil {
+				config.ErrorLog.Fatalf("could not run prometheus server: %s", err.Error())
+			}
+		}()
+	}
+
 	decoder := zlib.NewGrabTargetDecoder(inputFile, config.LookupDomain)
 	marshaler := zlib.NewGrabMarshaler()
 	worker := zlib.NewGrabWorker(&config)
+
 	start := time.Now()
+	config.ErrorLog.Infof("started grab at %s", start.Format(time.RFC3339))
+
 	processing.Process(decoder, outputConfig.OutputFile, worker, marshaler, config.Senders)
+
 	end := time.Now()
+	config.ErrorLog.Infof("finished grab (%d success; %d failure) at %s", worker.Success(), worker.Failure(), end.Format(time.RFC3339))
+
 	s := Summary{
 		Port:       config.Port,
 		Success:    worker.Success(),
@@ -369,6 +384,7 @@ func main() {
 		TLSVersion: tlsVersion,
 		MailType:   mailType,
 		SNISupport: !config.NoSNI,
+		Flags:      os.Args,
 	}
 	enc := json.NewEncoder(metadataFile)
 	if err := enc.Encode(&s); err != nil {

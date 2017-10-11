@@ -64,7 +64,7 @@ const (
 	typeClientKeyExchange   uint8 = 16
 	typeFinished            uint8 = 20
 	typeCertificateStatus   uint8 = 22
-	typeNextProtocol        uint8 = 67  // Not IANA assigned
+	typeNextProtocol        uint8 = 67 // Not IANA assigned
 	// typeEncryptedExtensions uint8 = 203 // Not IANA assigned
 )
 
@@ -88,7 +88,7 @@ const (
 	extensionSupportedVersions    uint16 = 43
 	extensionNextProtoNeg         uint16 = 13172 // not IANA assigned
 	extensionRenegotiationInfo    uint16 = 0xff01
-	extensionExtendedRandom       uint16 = 25333//0x0028 // not IANA assigned
+	extensionExtendedRandom       uint16 = 25333 //0x0028 // not IANA assigned
 	extensionSCT                  uint16 = 18
 	extensionPskModes             uint16 = 45
 	extensionCookie               uint16 = 44
@@ -124,7 +124,7 @@ type keyShare struct {
 type PSKMode uint8
 
 const (
-	PSKKE PSKMode = 0
+	PSKKE  PSKMode = 0
 	PSKDHE PSKMode = 1
 )
 
@@ -384,6 +384,39 @@ type Config struct {
 
 	// Explicitly set Client random
 	ClientRandom []byte
+
+	ExternalClientHello []byte
+}
+
+func (c *Config) Clone() *Config {
+	return &Config{
+		Rand:                     c.Rand,
+		Time:                     c.Time,
+		Certificates:             c.Certificates,
+		NameToCertificate:        c.NameToCertificate,
+		RootCAs:                  c.RootCAs,
+		NextProtos:               c.NextProtos,
+		ServerName:               c.ServerName,
+		ClientAuth:               c.ClientAuth,
+		ClientCAs:                c.ClientCAs,
+		InsecureSkipVerify:       c.InsecureSkipVerify,
+		CipherSuites:             c.CipherSuites,
+		PreferServerCipherSuites: c.PreferServerCipherSuites,
+		SessionTicketsDisabled:   c.SessionTicketsDisabled,
+		SessionTicketKey:         c.SessionTicketKey,
+		ClientSessionCache:       c.ClientSessionCache,
+		MinVersion:               c.MinVersion,
+		MaxVersion:               c.MaxVersion,
+		CurvePreferences:         c.CurvePreferences,
+		// originalConfig is deliberately not duplicated.
+
+		// Not merged from upstream:
+		// GetCertificate: c.GetCertificate,
+		// DynamicRecordSizingDisabled: c.DynamicRecordSizingDisabled,
+		// VerifyPeerCertificate:    c.VerifyPeerCertificate,
+		// KeyLogWriter:             c.KeyLogWriter,
+		// Renegotiation:            c.Renegotiation,
+	}
 }
 
 func (c *Config) serverInit() {
@@ -657,8 +690,8 @@ func defaultConfig() *Config {
 }
 
 var (
-	once                   sync.Once
-	varDefaultCipherSuites []uint16
+	once                        sync.Once
+	varDefaultCipherSuites      []uint16
 	varDefaultTLS13CipherSuites []uint16
 )
 

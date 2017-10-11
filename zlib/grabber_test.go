@@ -2,11 +2,6 @@ package zlib_test
 
 import (
 	"fmt"
-	"github.com/zmap/zgrab/zlib"
-	. "github.com/zmap/zgrab/ztools/http"
-	"github.com/zmap/zgrab/ztools/http/httptest"
-	"github.com/zmap/zgrab/ztools/zlog"
-	"github.com/zmap/zgrab/ztools/ztls"
 	"net"
 	"net/url"
 	"os"
@@ -14,6 +9,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zmap/zgrab/zlib"
+	. "github.com/zmap/zgrab/ztools/http"
+	"github.com/zmap/zgrab/ztools/http/httptest"
+	"github.com/zmap/zgrab/ztools/zlog"
+	"github.com/zmap/zgrab/ztools/ztls"
 )
 
 const TEST_SERVER_BODY = "Great Success!"
@@ -30,8 +31,8 @@ func TestHTTP(t *testing.T) {
 		if r.Protocol.Name != "HTTP/1.1" {
 			t.Errorf("Wrong Protocol - expected: %s, got: %s", "HTTP/1.1", r.Protocol.Name)
 		}
-		if len(r.Headers) != 2 || r.Headers.Get("User-Agent") != "test UA" || r.Headers.Get("Accept-Encoding") != "gzip" {
-			t.Errorf("Wrong headers: Expected User-Agent and Accept-Encoding, Got %s", r.Headers)
+		if len(r.Header) != 2 || r.Header.Get("User-Agent") != "test UA" || r.Header.Get("Accept-Encoding") != "gzip" {
+			t.Errorf("Wrong headers: Expected User-Agent and Accept-Encoding, Got %s", r.Header)
 		}
 		fmt.Fprintf(w, TEST_SERVER_BODY)
 	}))
@@ -56,7 +57,7 @@ func TestHTTP(t *testing.T) {
 		Port:               port,
 		Timeout:            time.Duration(3) * time.Second,
 		TLS:                false,
-		TLSVersion:         ztls.VersionTLS12,
+		TLSVersion:         tls.VersionTLS12,
 		Senders:            1,
 		ConnectionsPerHost: 1,
 		HTTP: zlib.HTTPConfig{
@@ -139,15 +140,16 @@ func TestHTTPToHTTPSRedirect(t *testing.T) {
 		Port:               redirectServerPort,
 		Timeout:            time.Duration(3) * time.Second,
 		TLS:                false,
-		TLSVersion:         ztls.VersionTLS12,
+		TLSVersion:         tls.VersionTLS12,
 		Senders:            1,
 		ConnectionsPerHost: 1,
 		HTTP: zlib.HTTPConfig{
-			Endpoint:     "/",
-			Method:       "GET",
-			UserAgent:    "test UA",
-			MaxSize:      256,
-			MaxRedirects: 1,
+			Endpoint:                 "/",
+			Method:                   "GET",
+			UserAgent:                "test UA",
+			MaxSize:                  256,
+			MaxRedirects:             1,
+			FollowLocalhostRedirects: true,
 		},
 		ErrorLog:   zlog.New(os.Stderr, "banner-grab"),
 		GOMAXPROCS: 1,
@@ -171,8 +173,8 @@ func TestHTTPToHTTPSRedirect(t *testing.T) {
 	}
 
 	redirectResponse := httpData.RedirectResponseChain[0]
-	if redirectResponse.Headers.Get("location") != "https://"+tlsServerHostString+"/" {
-		t.Errorf("Wrong location header - Expected: %s, got: %s", "https://"+tlsServerHostString+"/", redirectResponse.Headers.Get("location"))
+	if redirectResponse.Header.Get("location") != "https://"+tlsServerHostString+"/" {
+		t.Errorf("Wrong location header - Expected: %s, got: %s", "https://"+tlsServerHostString+"/", redirectResponse.Header.Get("location"))
 	}
 }
 

@@ -34,14 +34,18 @@ import (
 	"github.com/zmap/zgrab/ztools/scada/dnp3"
 	"github.com/zmap/zgrab/ztools/scada/fox"
 	"github.com/zmap/zgrab/ztools/scada/siemens"
+	"github.com/zmap/zgrab/ztools/smb"
 	"github.com/zmap/zgrab/ztools/telnet"
+	"github.com/zmap/zgrab/ztools/xssh"
 	"github.com/zmap/zgrab/ztools/zlog"
 	"github.com/zmap/zgrab/ztools/ztls"
 )
 
+var ErrRedirLocalhost = errors.New("Redirecting to Localhost")
+
 type GrabTarget struct {
-	Addr   net.IP
-	Domain string
+	Addr         net.IP
+	Domain       string
 	ComsysSource string
 	ComsysDate   string
 	ComsysInput  string
@@ -211,6 +215,9 @@ func makeTLSConfig(config *Config, urlHost string, sni string) *ztls.Config {
 			tlsConfig.ServerName = urlHost
 		}
 	}
+	if config.ExternalClientHello != nil {
+		tlsConfig.ExternalClientHello = config.ExternalClientHello
+	}
 
 	return tlsConfig
 }
@@ -223,6 +230,27 @@ func usingDefaultPort(scheme string, port uint16) bool {
 // return true if the string includes a port, does not validate port
 func containsPort(host string) bool {
 	return strings.LastIndex(host, ":") > strings.LastIndex(host, "]")
+}
+
+func redirectsToLocalhost(host string) bool {
+	if i := net.ParseIP(host); i != nil {
+		return i.IsLoopback() || i.Equal(net.IPv4zero)
+	} else {
+		if host == "localhost" {
+			return true
+		} else {
+			if addrs, err := net.LookupHost(host); err == nil {
+				for _, i := range addrs {
+					if ip := net.ParseIP(i); ip != nil {
+						if ip.IsLoopback() || ip.Equal(net.IPv4zero) {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) func(string, string, string) error {
@@ -245,6 +273,9 @@ func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) fun
 		client := http.MakeNewClient()
 		client.UserAgent = config.HTTP.UserAgent
 		client.CheckRedirect = func(req *http.Request, res *http.Response, via []*http.Request) error {
+			if !config.HTTP.FollowLocalhostRedirects && redirectsToLocalhost(req.URL.Hostname()) {
+				return ErrRedirLocalhost
+			}
 			grabData.HTTP.RedirectResponseChain = append(grabData.HTTP.RedirectResponseChain, res)
 			b := new(bytes.Buffer)
 			maxReadLen := int64(config.HTTP.MaxSize) * 1024
@@ -314,6 +345,14 @@ func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) fun
 			defer resp.Body.Close()
 		}
 		grabData.HTTP.Response = resp
+
+		if err != nil {
+			if urlError, ok := err.(*url.Error); ok {
+				if urlError.Err == ErrRedirLocalhost {
+					err = nil
+				}
+			}
+		}
 
 		if err != nil {
 			if ztls.IsTLS13notImplementedAbortError(err) {
@@ -397,14 +436,17 @@ func makeGrabber(config *Config) func(*Conn) error {
 		if config.ExtendedMasterSecret {
 			c.SetOfferExtendedMasterSecret()
 		}
+		if config.ExternalClientHello != nil {
+			c.SetExternalClientHello(config.ExternalClientHello)
+		}
 		if config.TLSVerbose {
 			c.SetTLSVerbose()
 		}
 
-		if config.SSH.SSH {
-			c.sshScan = &config.SSH
-		}
-		c.ReadEncoding = config.Encoding
+		//if config.SSH.SSH {
+		//	c.sshScan = &config.SSH
+		//}
+		//c.ReadEncoding = config.Encoding
 		if config.TLS {
 			if err := c.TLSHandshake(); err != nil {
 				c.erroredComponent = "tls"
@@ -484,12 +526,21 @@ func makeGrabber(config *Config) func(*Conn) error {
 			dnp3.GetDNP3Banner(c.grabData.DNP3, c.getUnderlyingConn())
 		}
 
-		if config.SSH.SSH {
-			if err := c.SSHHandshake(); err != nil {
-				c.erroredComponent = "ssh"
+		if config.SMB.SMB {
+			c.grabData.SMB = new(smb.SMBLog)
+
+			if err := smb.GetSMBBanner(c.grabData.SMB, c.getUnderlyingConn()); err != nil {
+				c.erroredComponent = "smb"
 				return err
 			}
 		}
+
+		//if config.SSH.SSH {
+		//	if err := c.SSHHandshake(); err != nil {
+		//		c.erroredComponent = "ssh"
+		//		return err
+		//	}
+		//}
 
 		if config.SendData {
 			host, _, _ := net.SplitHostPort(c.RemoteAddr().String())
@@ -536,6 +587,23 @@ func makeGrabber(config *Config) func(*Conn) error {
 			}
 		}
 
+		if config.SMTP {
+			if err := c.SMTPQuit(); err != nil {
+				c.erroredComponent = "quit"
+				return err
+			}
+		} else if config.POP3 {
+			if err := c.POP3Quit(); err != nil {
+				c.erroredComponent = "quit"
+				return err
+			}
+		} else if config.IMAP {
+			if err := c.IMAPQuit(); err != nil {
+				c.erroredComponent = "quit"
+				return err
+			}
+		}
+
 		if config.Modbus {
 			if _, err := c.SendModbusEcho(); err != nil {
 				c.erroredComponent = "modbus"
@@ -572,9 +640,40 @@ func makeGrabber(config *Config) func(*Conn) error {
 	}
 }
 
-func GrabBanner(config *Config, target *GrabTarget) *Grab {
+func makeXSSHGrabber(gblConfig *Config, grabData GrabData) func(string) error {
+	return func(netAddr string) error {
 
-	if len(config.HTTP.Endpoint) == 0 {
+		xsshConfig := xssh.MakeXSSHConfig()
+		xsshConfig.Timeout = gblConfig.Timeout
+		xsshConfig.ConnLog = grabData.XSSH
+		_, err := xssh.Dial("tcp", netAddr, xsshConfig)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+}
+
+func GrabBanner(config *Config, target *GrabTarget) *Grab {
+	if config.XSSH.XSSH {
+		t := time.Now()
+
+		grabData := GrabData{XSSH: new(xssh.HandshakeLog)}
+		xsshGrabber := makeXSSHGrabber(config, grabData)
+
+		port := strconv.FormatUint(uint64(config.Port), 10)
+		rhost := net.JoinHostPort(target.Addr.String(), port)
+
+		err := xsshGrabber(rhost)
+
+		return &Grab{
+			IP:    target.Addr,
+			Time:  t,
+			Data:  grabData,
+			Error: err,
+		}
+	} else if len(config.HTTP.Endpoint) == 0 {
 		dial := makeDialer(config)
 		grabber := makeGrabber(config)
 		port := strconv.FormatUint(uint64(config.Port), 10)
@@ -627,14 +726,14 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 		err := httpGrabber(rhost, config.HTTP.Endpoint, target.Domain)
 
 		return &Grab{
-			IP:     target.Addr,
-			Domain: target.Domain,
-			Time:   t,
-			Data:   grabData,
-			Error:  err,
-			ComsysSource:   target.ComsysSource,
-			ComsysDate:     target.ComsysDate,
-			ComsysInput:    target.ComsysInput,
+			IP:           target.Addr,
+			Domain:       target.Domain,
+			Time:         t,
+			Data:         grabData,
+			Error:        err,
+			ComsysSource: target.ComsysSource,
+			ComsysDate:   target.ComsysDate,
+			ComsysInput:  target.ComsysInput,
 		}
 	}
 }
