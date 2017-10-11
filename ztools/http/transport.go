@@ -930,7 +930,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 			if trace != nil && trace.GotConn != nil && v.pc.alt == nil {
 				trace.GotConn(httptrace.GotConnInfo{Conn: v.pc.conn})
 			}
-			return v.pc, nil
+			return v.pc, v.err
 		}
 		// Our dial failed. See why to return a nicer error
 		// value.
