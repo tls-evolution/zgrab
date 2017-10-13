@@ -35,20 +35,33 @@ type ParsedAndRawSCT struct {
 	Parsed *ct.SignedCertificateTimestamp `json:"parsed,omitempty"`
 }
 
+type KeyShareT struct {
+	Group CurveID `json:"group"`
+	Data  []byte  `json:"data,omitempty"`
+}
+
+type HelloRetryRequest struct {
+	Cookie      []byte    `json:"cookie,omitempty"`
+	KeyShare    KeyShareT `json:"keyshare,omitempty"`
+	CypherSuite *uint16   `json:"cypher_suite,omitempty"`
+}
+
 type ServerHello struct {
-	Version                     TLSVersion        `json:"version"`
-	Random                      []byte            `json:"random"`
-	SessionID                   []byte            `json:"session_id"`
-	CipherSuite                 CipherSuite       `json:"cipher_suite"`
-	CompressionMethod           uint8             `json:"compression_method"`
-	OcspStapling                bool              `json:"ocsp_stapling"`
-	TicketSupported             bool              `json:"ticket"`
-	SecureRenegotiation         bool              `json:"secure_renegotiation"`
-	HeartbeatSupported          bool              `json:"heartbeat"`
-	ExtendedRandom              []byte            `json:"extended_random,omitempty"`
-	ExtendedMasterSecret        bool              `json:"extended_master_secret"`
-	SignedCertificateTimestamps []ParsedAndRawSCT `json:"scts,omitempty"`
-	Raw                         []byte            `json:"raw,omitempty"`
+	Version                     TLSVersion         `json:"version"`
+	Random                      []byte             `json:"random"`
+	SessionID                   []byte             `json:"session_id"`
+	CipherSuite                 CipherSuite        `json:"cipher_suite"`
+	CompressionMethod           uint8              `json:"compression_method"`
+	OcspStapling                bool               `json:"ocsp_stapling"`
+	TicketSupported             bool               `json:"ticket"`
+	SecureRenegotiation         bool               `json:"secure_renegotiation"`
+	HeartbeatSupported          bool               `json:"heartbeat"`
+	ExtendedRandom              []byte             `json:"extended_random,omitempty"`
+	ExtendedMasterSecret        bool               `json:"extended_master_secret"`
+	SignedCertificateTimestamps []ParsedAndRawSCT  `json:"scts,omitempty"`
+	Raw                         []byte             `json:"raw,omitempty"`
+	RetryRequest                *HelloRetryRequest `json:"retry_request,omitempty"`
+	KeyShare                    KeyShareT          `json:"keyshare"`
 }
 
 // SimpleCertificate holds a *x509.Certificate and a []byte for the certificate
@@ -264,6 +277,17 @@ func (m *serverHelloMsg13) MakeLog(retryRequest *helloRetryRequestMsg) *ServerHe
 	copy(sh.Random, m.random)
 	sh.CipherSuite = CipherSuite(m.cipherSuite)
 	sh.Raw = m.raw
+	if retryRequest != nil {
+		sh.RetryRequest = new(HelloRetryRequest)
+		sh.RetryRequest.Cookie = retryRequest.cookie
+		sh.RetryRequest.KeyShare.Group = retryRequest.keyShare.group
+		if retryRequest.hasCipherSuite {
+			sh.RetryRequest.CypherSuite = new(uint16)
+			*sh.RetryRequest.CypherSuite = retryRequest.cipherSuite
+		}
+	}
+	sh.KeyShare.Group = m.keyShare.group
+	sh.KeyShare.Data = m.keyShare.data
 	return sh
 }
 
