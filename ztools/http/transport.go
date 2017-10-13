@@ -377,8 +377,8 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		// to send it requests.
 		pconn, err := t.getConn(treq, cm)
 		if err != nil {
-			t.setReqCanceler(req, nil)
-			req.closeBody()
+			defer t.setReqCanceler(req, nil)
+			defer req.closeBody()
 			if ztls.IsTLS13notImplementedAbortError(err) {
 				// TODO TLS 1.3 handshake not fully supported yet
 				req.TLSHandshake = pconn.conn.(*ztls.Conn).GetHandshakeLog()
