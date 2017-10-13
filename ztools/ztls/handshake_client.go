@@ -438,8 +438,9 @@ func (c *Conn) clientHandshake() error {
 		hello.cookie = nil
 
 	}
-retry:
+
 	var helloRetryRequest *helloRetryRequestMsg = nil
+retry:
 	c.writeRecord(recordTypeHandshake, hello.marshal())
 	c.handshakeLog.ClientHello = hello.MakeLog()
 
