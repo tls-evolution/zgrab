@@ -299,6 +299,11 @@ func (c *Conn) clientHandshake() error {
 			0x0019,
 			0x0100,
 			0x0101,
+
+			0x001e,
+			0x0102,
+			0x0103,
+			0x0104,
 		}
 
 		// 0x00, 0x0b, // ec point formats
