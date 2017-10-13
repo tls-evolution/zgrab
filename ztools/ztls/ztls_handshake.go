@@ -257,7 +257,7 @@ func (m *serverHelloMsg) MakeLog() *ServerHello {
 	return sh
 }
 
-func (m *serverHelloMsg13) MakeLog() *ServerHello {
+func (m *serverHelloMsg13) MakeLog(retryRequest *helloRetryRequestMsg) *ServerHello {
 	sh := new(ServerHello)
 	sh.Version = TLSVersion(m.vers)
 	sh.Random = make([]byte, len(m.random))

@@ -439,6 +439,7 @@ func (c *Conn) clientHandshake() error {
 
 	}
 retry:
+	var helloRetryRequest *helloRetryRequestMsg = nil
 	c.writeRecord(recordTypeHandshake, hello.marshal())
 	c.handshakeLog.ClientHello = hello.MakeLog()
 
@@ -452,9 +453,9 @@ retry:
 	// is mainly a code duplication of the rest of this functions code
 	serverHello13, ok := msg.(*serverHelloMsg13)
 	if ok {
-		return c.clientHandshake13(serverHello13, session, hello, cacheKey)
+		return c.clientHandshake13(serverHello13, helloRetryRequest, session, hello, cacheKey)
 	}
-	helloRetryRequest, ok := msg.(*helloRetryRequestMsg)
+	helloRetryRequest, ok = msg.(*helloRetryRequestMsg)
 	if ok {
 		if helloRetryRequest.cookie != nil {
 			copy(hello.cookie, helloRetryRequest.cookie)
@@ -579,11 +580,11 @@ retry:
 	return nil
 }
 
-func (c *Conn) clientHandshake13(serverHello *serverHelloMsg13, session *ClientSessionState, hello *clientHelloMsg, cacheKey string) error {
+func (c *Conn) clientHandshake13(serverHello *serverHelloMsg13, retryRequest *helloRetryRequestMsg, session *ClientSessionState, hello *clientHelloMsg, cacheKey string) error {
 
 	sessionCache := c.config.ClientSessionCache
 
-	c.handshakeLog.ServerHello = serverHello.MakeLog()
+	c.handshakeLog.ServerHello = serverHello.MakeLog(retryRequest)
 
 	// if serverHello.heartbeatEnabled {
 	// 	c.heartbeat = true
