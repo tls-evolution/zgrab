@@ -339,7 +339,7 @@ func makeHTTPGrabber(config *Config, grabData *GrabData) func(string, string, st
 		if err != nil {
 			if err.Error()[len(err.Error())-len("TLS13"):] == "TLS13" {
 				// TODO We intentionally aborted the TLS 1.3 handshake as it is not supported yet
-				return nil
+				return err
 			}
 			config.ErrorLog.Errorf("Could not connect to remote host %s: %s", fullURL, err.Error())
 			return err

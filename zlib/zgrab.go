@@ -103,6 +103,10 @@ func (g *Grab) UnmarshalJSON(b []byte) error {
 
 func (g *Grab) status() status {
 	if g.Error != nil {
+		if g.Error.Error()[len(g.Error.Error())-len("TLS13"):] == "TLS13" {
+			// TODO We intentionally aborted the TLS 1.3 handshake as it is not supported yet
+			return status_success
+		}
 		return status_failure
 	}
 	return status_success
