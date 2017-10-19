@@ -112,7 +112,7 @@ func (g *Grab) UnmarshalJSON(b []byte) error {
 
 func (g *Grab) status() status {
 	if g.Error != nil {
-		if ztls.IsTLS13notImplementedAbortError(g.Error) {
+		if tls.IsTLS13notImplementedAbortError(g.Error) {
 			// TODO We intentionally aborted the TLS 1.3 handshake as it is not supported yet
 			return status_success
 		}

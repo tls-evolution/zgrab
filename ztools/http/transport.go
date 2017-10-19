@@ -379,12 +379,12 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		if err != nil {
 			defer t.setReqCanceler(req, nil)
 			defer req.closeBody()
-			if ztls.IsTLS13notImplementedAbortError(err) {
+			if tls.IsTLS13notImplementedAbortError(err) {
 				// TODO TLS 1.3 handshake not fully supported yet
-				req.TLSHandshake = pconn.conn.(*ztls.Conn).GetHandshakeLog()
+				req.TLSHandshake = pconn.conn.(*tls.Conn).GetHandshakeLog()
 				// we return a faked response to have access to req later on
 				res := &Response{
-					Request:	req,
+					Request: req,
 				}
 				return res, err
 			}
@@ -1100,7 +1100,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		}()
 		if err := <-errc; err != nil {
 			plainConn.Close()
-			if ztls.IsTLS13notImplementedAbortError(err) {
+			if tls.IsTLS13notImplementedAbortError(err) {
 				// TODO TLS 1.3 handshake not fully supported yet
 				pconn.conn = tlsConn
 				return pconn, err

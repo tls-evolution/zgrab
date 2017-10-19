@@ -44,8 +44,8 @@ import (
 var ErrRedirLocalhost = errors.New("Redirecting to Localhost")
 
 type GrabTarget struct {
-	Addr   net.IP
-	Domain string
+	Addr         net.IP
+	Domain       string
 	ComsysSource string
 	ComsysDate   string
 	ComsysInput  string
@@ -158,7 +158,7 @@ func makeNetDialer(c *Config) func(string, string) (net.Conn, error) {
 	}
 }
 
-func makeTLSConfig(config *Config, urlHost string, sni string) *ztls.Config {
+func makeTLSConfig(config *Config, urlHost string, sni string) *tls.Config {
 	tlsConfig := new(tls.Config)
 	tlsConfig.InsecureSkipVerify = true
 	tlsConfig.MinVersion = tls.VersionSSL30
@@ -355,7 +355,7 @@ func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) fun
 		}
 
 		if err != nil {
-			if ztls.IsTLS13notImplementedAbortError(err) {
+			if tls.IsTLS13notImplementedAbortError(err) {
 				// TODO We intentionally aborted the TLS 1.3 handshake as it is not supported yet
 				return err
 			}
@@ -715,14 +715,14 @@ func GrabBanner(config *Config, target *GrabTarget) *Grab {
 		err := httpGrabber(rhost, config.HTTP.Endpoint, target.Domain)
 
 		return &Grab{
-			IP:     target.Addr,
-			Domain: target.Domain,
-			Time:   t,
-			Data:   grabData,
-			Error:  err,
-			ComsysSource:   target.ComsysSource,
-			ComsysDate:     target.ComsysDate,
-			ComsysInput:    target.ComsysInput,
+			IP:           target.Addr,
+			Domain:       target.Domain,
+			Time:         t,
+			Data:         grabData,
+			Error:        err,
+			ComsysSource: target.ComsysSource,
+			ComsysDate:   target.ComsysDate,
+			ComsysInput:  target.ComsysInput,
 		}
 	}
 }
