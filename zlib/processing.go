@@ -62,7 +62,13 @@ func (g *GrabWorker) MakeHandler() processing.Handler {
 		if !ok {
 			return nil
 		}
-		grab := GrabBanner(g.config, &target)
+		var grab *Grab
+		if g.config.Blacklist != "" {
+			grab = GrabBlacklist(g.config, &target)
+		}
+		if grab == nil {
+			grab = GrabBanner(g.config, &target)
+		}
 		s := grab.status()
 		g.statuses <- s
 		return grab

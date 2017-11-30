@@ -125,4 +125,6 @@ type Config struct {
 
 	// SMB
 	SMB SMBScanConfig
+
+	Blacklist string
 }

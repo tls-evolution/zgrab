@@ -135,6 +135,8 @@ func init() {
 	flag.BoolVar(&config.SMB.SMB, "smb", false, "Scan for SMB")
 	flag.IntVar(&config.SMB.Protocol, "smb-protocol", 1, "Specify which SMB protocol to scan for")
 
+	flag.StringVar(&config.Blacklist, "blacklist", "", "URI for CIDR blacklist")
+
 	flag.Parse()
 
 	// Validate Go Runtime config
