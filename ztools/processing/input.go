@@ -15,9 +15,11 @@
 package processing
 
 import (
-	"github.com/zmap/zgrab/ztools/zlog"
 	"io"
 	"sync"
+
+	"github.com/zmap/zgrab/tls13measurements"
+	"github.com/zmap/zgrab/ztools/zlog"
 )
 
 type Decoder interface {
@@ -66,9 +68,10 @@ func Process(in Decoder, out io.Writer, w Worker, m Marshaler, workers uint) {
 		handler := w.MakeHandler()
 		runCount := w.RunCount()
 		go func(handler Handler) {
+			var lock sync.Mutex
 			for obj := range processQueue {
 				for run := uint(0); run < runCount; run++ {
-					result := handler(obj)
+					result := tls13measurements.ExecuteLocked(&lock, obj, handler)
 					enc, err := m.Marshal(result)
 					if err != nil {
 						panic(err.Error())
