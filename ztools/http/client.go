@@ -15,14 +15,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	//"log"
 	"net/url"
 	"sort"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/zmap/zcrypto/tls"
 )
 
 // A Client is an HTTP client. Its zero value (DefaultClient) is a
@@ -257,13 +255,13 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 	resp, err = rt.RoundTrip(req)
 	if err != nil {
 		stopTimer()
-		if tls.IsTLS13notImplementedAbortError(err) {
-			return resp, didTimeout, err
-		}
-		if resp != nil {
-			log.Printf("RoundTripper returned a response & error; ignoring response")
-		}
-		return nil, didTimeout, err
+		//if tls.IsTLS13notImplementedAbortError(err) {
+		//	return resp, didTimeout, err
+		//}
+		//if resp != nil {
+		//	log.Printf("RoundTripper returned a response & error; ignoring response")
+		//}
+		return resp, didTimeout, err
 	}
 	if !deadline.IsZero() {
 		resp.Body = &cancelTimerBody{

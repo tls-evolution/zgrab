@@ -15,6 +15,7 @@
 package zlib
 
 import (
+	"bufio"
 	"time"
 
 	"github.com/zmap/zcrypto/x509"
@@ -125,6 +126,8 @@ type Config struct {
 
 	// SMB
 	SMB SMBScanConfig
+
+	KeylogFile *bufio.Writer
 
 	Blacklist string
 }

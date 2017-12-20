@@ -376,23 +376,28 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		// pre-CONNECTed to https server. In any case, we'll be ready
 		// to send it requests.
 		pconn, err := t.getConn(treq, cm)
+
+		if cm.targetScheme == "https" {
+			if (pconn != nil) && (pconn.conn != nil) {
+				req.TLSHandshake = pconn.conn.(*tls.Conn).GetHandshakeLog()
+			}
+		}
+
 		if err != nil {
 			defer t.setReqCanceler(req, nil)
 			defer req.closeBody()
-			if tls.IsTLS13notImplementedAbortError(err) {
-				// TODO TLS 1.3 handshake not fully supported yet
-				req.TLSHandshake = pconn.conn.(*tls.Conn).GetHandshakeLog()
-				// we return a faked response to have access to req later on
-				res := &Response{
-					Request: req,
+			/*
+				if tls.IsTLS13notImplementedAbortError(err) {
+					// TODO TLS 1.3 handshake not fully supported yet
+					req.TLSHandshake = pconn.conn.(*tls.Conn).GetHandshakeLog()
+					// we return a faked response to have access to req later on
+					res := &Response{
+						Request: req,
+					}
+					return res, err
 				}
-				return res, err
-			}
-			return nil, err
-		}
-
-		if cm.targetScheme == "https" {
-			req.TLSHandshake = pconn.conn.(*tls.Conn).GetHandshakeLog()
+			*/
+			return &Response{Request: req}, err
 		}
 
 		var resp *Response
@@ -1100,15 +1105,18 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
 		}()
 		if err := <-errc; err != nil {
 			plainConn.Close()
-			if tls.IsTLS13notImplementedAbortError(err) {
-				// TODO TLS 1.3 handshake not fully supported yet
-				pconn.conn = tlsConn
-				return pconn, err
-			}
+			/*
+				if tls.IsTLS13notImplementedAbortError(err) {
+					// TODO TLS 1.3 handshake not fully supported yet
+					pconn.conn = tlsConn
+					return pconn, err
+				}
+			*/
 			if trace != nil && trace.TLSHandshakeDone != nil {
 				trace.TLSHandshakeDone(tls.ConnectionState{}, err)
 			}
-			return nil, err
+			pconn.conn = tlsConn
+			return pconn, err
 		}
 		if !cfg.InsecureSkipVerify {
 			if err := tlsConn.VerifyHostname(cfg.ServerName); err != nil {

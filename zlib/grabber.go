@@ -90,6 +90,7 @@ type grabDomainDecoder struct {
 }
 
 func (gdd *grabDomainDecoder) DecodeNext() (interface{}, error) {
+again:
 	record, err := gdd.reader.ReadBytes('\n')
 	if err != nil {
 		return nil, err
@@ -100,7 +101,13 @@ func (gdd *grabDomainDecoder) DecodeNext() (interface{}, error) {
 		return nil, errors.New("No domains were found")
 	}
 
-	target.Domain = string(record[:len(record)-1])
+	dom := string(record[:len(record)-1])
+	dom = strings.TrimSpace(strings.SplitN(dom, "#", 2)[0])
+	if len(dom) == 0 {
+		goto again
+	}
+
+	target.Domain = dom
 	return target, nil
 }
 
@@ -166,6 +173,10 @@ func makeTLSConfig(config *Config, urlHost string, sni string) *tls.Config {
 	tlsConfig.RootCAs = config.RootCAPool
 	tlsConfig.HeartbeatEnabled = true
 	tlsConfig.ClientDSAEnabled = true
+	if config.KeylogFile != nil {
+		//tlsConfig.KeyLogWriter = config.KeylogFile
+	}
+
 	if config.DHEOnly {
 		tlsConfig.CipherSuites = tls.DHECiphers
 	}
@@ -198,9 +209,6 @@ func makeTLSConfig(config *Config, urlHost string, sni string) *tls.Config {
 	if config.SafariNoDHE {
 		tlsConfig.CipherSuites = tls.SafariNoDHECiphers
 		tlsConfig.ForceSuites = true
-	}
-	if config.TLSExtendedRandom {
-		tlsConfig.ExtendedRandom = true
 	}
 	if config.SignedCertificateTimestampExt {
 		tlsConfig.SignedCertificateTimestampExt = true
@@ -355,10 +363,11 @@ func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) fun
 		}
 
 		if err != nil {
-			if tls.IsTLS13notImplementedAbortError(err) {
-				// TODO We intentionally aborted the TLS 1.3 handshake as it is not supported yet
-				return err
-			}
+			/*
+				if tls.IsTLS13notImplementedAbortError(err) {
+					// TODO We intentionally aborted the TLS 1.3 handshake as it is not supported yet
+					return err
+				}*/
 			config.ErrorLog.Errorf("Could not connect to remote host %s: %s", fullURL, err.Error())
 			return err
 		}

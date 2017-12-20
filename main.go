@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"io"
@@ -284,6 +285,12 @@ func init() {
 		}
 	}
 
+	if kv, ok := os.LookupEnv("SSLKEYLOGFILE"); ok {
+		if f, err := os.Create(kv); err == nil {
+			config.KeylogFile = bufio.NewWriter(f)
+		}
+	}
+
 	// Open input and output files
 	switch inputFileName {
 	case "-":
@@ -391,5 +398,8 @@ func main() {
 	enc := json.NewEncoder(metadataFile)
 	if err := enc.Encode(&s); err != nil {
 		config.ErrorLog.Errorf("Unable to write summary: %s", err.Error())
+	}
+	if config.KeylogFile != nil {
+		config.KeylogFile.Flush()
 	}
 }

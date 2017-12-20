@@ -299,9 +299,6 @@ func (c *Conn) TLSHandshake() error {
 	if !c.noSNI && c.domain != "" {
 		tlsConfig.ServerName = c.domain
 	}
-	if c.extendedRandom {
-		tlsConfig.ExtendedRandom = true
-	}
 	if c.SignedCertificateTimestampExt {
 		tlsConfig.SignedCertificateTimestampExt = true
 	}

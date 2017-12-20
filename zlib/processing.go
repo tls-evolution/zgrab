@@ -16,6 +16,7 @@ package zlib
 
 import (
 	"encoding/json"
+
 	"github.com/zmap/zgrab/ztools/processing"
 )
 
@@ -62,6 +63,14 @@ func (g *GrabWorker) MakeHandler() processing.Handler {
 		if !ok {
 			return nil
 		}
+		/*
+			defer func() {
+				if r := recover(); r != nil {
+					g.config.ErrorLog.Errorf("Paniced while processing %s", target.Domain)
+				}
+			}()
+			g.config.ErrorLog.Infof("Starting %s", target.Domain)
+		*/
 		var grab *Grab
 		if g.config.Blacklist != "" {
 			grab = GrabBlacklist(g.config, &target)
