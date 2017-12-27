@@ -40,18 +40,20 @@ type Grab struct {
 	ComsysSource   string
 	ComsysDate     string
 	ComsysInput    string
+	Route          map[int]string
 }
 
 type encodedGrab struct {
-	IP             string    `json:"ip"`
-	Domain         string    `json:"domain,omitempty"`
-	Time           string    `json:"timestamp"`
-	Data           *GrabData `json:"data,omitempty"`
-	Error          *string   `json:"error,omitempty"`
-	ErrorComponent string    `json:"error_component,omitempty"`
-	ComsysSource   string    `json:"comsys-source,omitempty"`
-	ComsysDate     string    `json:"comsys-date,omitempty"`
-	ComsysInput    string    `json:"comsys-input,omitempty"`
+	IP             string         `json:"ip"`
+	Domain         string         `json:"domain,omitempty"`
+	Time           string         `json:"timestamp"`
+	Data           *GrabData      `json:"data,omitempty"`
+	Error          *string        `json:"error,omitempty"`
+	ErrorComponent string         `json:"error_component,omitempty"`
+	ComsysSource   string         `json:"comsys-source,omitempty"`
+	ComsysDate     string         `json:"comsys-date,omitempty"`
+	ComsysInput    string         `json:"comsys-input,omitempty"`
+	Route          map[int]string `json:"route,omitempty"`
 }
 
 type GrabData struct {
@@ -92,6 +94,7 @@ func (g *Grab) MarshalJSON() ([]byte, error) {
 		ComsysSource:   g.ComsysSource,
 		ComsysDate:     g.ComsysDate,
 		ComsysInput:    g.ComsysInput,
+		Route:          g.Route,
 	}
 	return json.Marshal(obj)
 }

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/textproto"
 	"net/url"
 	"strconv"
@@ -109,6 +110,8 @@ type Response struct {
 	// The pointer is shared between responses and should not be
 	// modified.
 	TLS *tls.ConnectionState `json:"-"`
+
+	AddressUsed net.TCPAddr `json:"-"`
 }
 
 // Hex returns the given fingerprint encoded as a hex string.
