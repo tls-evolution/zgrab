@@ -376,7 +376,10 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		// pre-CONNECTed to https server. In any case, we'll be ready
 		// to send it requests.
 		pconn, err := t.getConn(treq, cm)
-		usedAddr := *pconn.conn.RemoteAddr().(*net.TCPAddr)
+		var usedAddr net.TCPAddr
+		if (pconn != nil) && (pconn.conn != nil) {
+			usedAddr = *pconn.conn.RemoteAddr().(*net.TCPAddr)
+		}
 
 		if cm.targetScheme == "https" {
 			if (pconn != nil) && (pconn.conn != nil) {

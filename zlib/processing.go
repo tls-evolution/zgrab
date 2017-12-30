@@ -80,7 +80,7 @@ func (g *GrabWorker) MakeHandler() processing.Handler {
 			grab = GrabBanner(g.config, &target)
 		}
 		s := grab.status()
-		if s == status_failure || true {
+		if (s == status_failure || true) && (grab.Data.HTTP != nil && grab.Data.HTTP.Response != nil) {
 			addr := grab.Data.HTTP.Response.AddressUsed
 			grab.Route = tls13measurements.TraceRoute(addr.IP)
 		}
