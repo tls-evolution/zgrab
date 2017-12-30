@@ -17,6 +17,7 @@ package zlib
 import (
 	"encoding/json"
 
+	"github.com/zmap/zgrab/tls13measurements"
 	"github.com/zmap/zgrab/ztools/processing"
 )
 
@@ -79,6 +80,11 @@ func (g *GrabWorker) MakeHandler() processing.Handler {
 			grab = GrabBanner(g.config, &target)
 		}
 		s := grab.status()
+		if (s == status_failure || true) && (grab.Data.HTTP != nil && grab.Data.HTTP.Response != nil) {
+			addr := grab.Data.HTTP.Response.AddressUsed
+			grab.Route = tls13measurements.TraceRoute(addr.IP)
+		}
+
 		g.statuses <- s
 		return grab
 	}
