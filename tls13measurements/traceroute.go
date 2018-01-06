@@ -1,7 +1,6 @@
 package tls13measurements
 
 import (
-	"log"
 	"net"
 	"os/exec"
 	"strconv"
@@ -21,27 +20,11 @@ func TraceRoute_GO(ip net.IP) Route {
 	options.SetRetries(0)
 	options.SetMaxHops(30 + 1)
 
-	route := make(Route)
-	res, err := traceroute.Traceroute(ip.String(), &options)
-	if err != nil {
-		log.Print("Traceroute error: ", err)
-	}
-
-	for _, hop := range res.Hops {
-		if hop.Success {
-			route[hop.TTL] = hop.AddressString()
-		}
-	}
-
-	if len(route) == 0 {
-		return nil
-	}
-
-	return route
+	return Route(traceroute.Traceroute(ip, &options))
 }
 
 func TraceRoute_SYS(ip net.IP) Route {
-	out, err := exec.Command("traceroute", "-n", "-N 1", ip.String()).Output()
+	out, err := exec.Command("traceroute", "-n", "-N 30", ip.String()).Output()
 	if err != nil {
 		return nil
 	}
@@ -52,6 +35,9 @@ func TraceRoute_SYS(ip net.IP) Route {
 
 	for _, s := range results {
 		dat := strings.Fields(s)
+		if dat[1] == "*" {
+			continue
+		}
 		idx, err := strconv.Atoi(dat[0])
 		if err == nil {
 			route[idx] = dat[1]

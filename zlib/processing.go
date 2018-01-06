@@ -80,9 +80,14 @@ func (g *GrabWorker) MakeHandler() processing.Handler {
 			grab = GrabBanner(g.config, &target)
 		}
 		s := grab.status()
-		if (s == status_failure || true) && (grab.Data.HTTP != nil && grab.Data.HTTP.Response != nil) {
-			addr := grab.Data.HTTP.Response.AddressUsed
-			grab.Route = tls13measurements.TraceRoute(addr.IP)
+		if g.config.TraceRoute && (s == status_failure || true) {
+			if grab.Data.HTTP != nil && grab.Data.HTTP.Response != nil && grab.Data.HTTP.Response.AddressUsed.IP != nil {
+				addr := grab.Data.HTTP.Response.AddressUsed
+				grab.Route = tls13measurements.TraceRoute(addr.IP)
+			} else if target.Addr != nil {
+				// we had no successful socket to the destination, use the given IP, if available
+				grab.Route = tls13measurements.TraceRoute(target.Addr)
+			}
 		}
 
 		g.statuses <- s

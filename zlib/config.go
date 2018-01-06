@@ -130,4 +130,6 @@ type Config struct {
 	KeylogFile *bufio.Writer
 
 	Blacklist string
+
+	TraceRoute bool
 }

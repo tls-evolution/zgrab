@@ -6,16 +6,88 @@ package traceroute
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
+	"sync"
 	"syscall"
 	"time"
 )
 
 const DEFAULT_PORT = 33434
-const DEFAULT_MAX_HOPS = 64
+const DEFAULT_MAX_HOPS = 30
 const DEFAULT_TIMEOUT_MS = 500
 const DEFAULT_RETRIES = 3
 const DEFAULT_PACKET_SIZE = 52
+
+type Route map[int]string
+
+type hopInfo struct {
+	reply  chan *hopInfo
+	socket int
+	port   uint16
+	ok     bool
+	ttl    int
+	addr   [4]byte
+}
+
+var (
+	portInfo     map[uint16]*hopInfo
+	portInfoLock sync.Mutex
+)
+
+func init() {
+	portInfo = make(map[uint16]*hopInfo)
+	socketAddr, err := socketAddr()
+	if err != nil {
+		return
+	}
+	var p = make([]byte, DEFAULT_PACKET_SIZE)
+
+	// Set up the socket to receive inbound packets
+	recvSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
+	if err != nil {
+		panic(err)
+	}
+
+	// For the moment we leak the socket!
+	//defer syscall.Close(recvSocket)
+
+	// This sets the timeout to wait for a response from the remote host
+	//tv := syscall.NsecToTimeval(math.MinInt64)
+	//syscall.SetsockoptTimeval(recvSocket, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+
+	// Bind to the local socket to listen for ICMP packets
+	if err := syscall.Bind(recvSocket, &syscall.SockaddrInet4{Port: DEFAULT_PORT, Addr: socketAddr}); err != nil {
+		panic(err)
+	}
+
+	go func() {
+		for {
+			n, from, err := syscall.Recvfrom(recvSocket, p, syscall.MSG_WAITALL)
+			if err == nil {
+				currAddr := from.(*syscall.SockaddrInet4).Addr
+				if n >= 52 {
+					z := p[20+8+20:] // Skip IP header, ICMP header and echoed IP header
+					srcPort := uint16(z[1]) | uint16(z[0])<<8
+
+					portInfoLock.Lock()
+					if hi, ok := portInfo[srcPort]; ok {
+						delete(portInfo, srcPort)
+						hi.addr = currAddr
+						hi.ok = true
+						hi.reply <- hi
+						//hi.typ = p[20]
+						//hi.code = p[21]
+					}
+					portInfoLock.Unlock()
+				}
+			} else {
+				log.Print("Tracert error (1): ", err)
+			}
+		}
+	}()
+
+}
 
 // Return the first non-loopback address as a 4 byte IP address. This address
 // is used for sending packets out.
@@ -37,40 +109,11 @@ func socketAddr() (addr [4]byte, err error) {
 	return
 }
 
-// Given a host name convert it to a 4 byte IP address.
-func destAddr(dest string) (destAddr [4]byte, err error) {
-	addrs, err := net.LookupHost(dest)
-	if err != nil {
-		return
-	}
-	addr := addrs[0]
-
-	ipAddr, err := net.ResolveIPAddr("ip", addr)
-	if err != nil {
-		return
-	}
-	copy(destAddr[:], ipAddr.IP.To4())
-	return
-}
-
 // TracrouteOptions type
 type TracerouteOptions struct {
-	port       int
-	maxHops    int
-	timeoutMs  int
-	retries    int
-	packetSize int
-}
-
-func (options *TracerouteOptions) Port() int {
-	if options.port == 0 {
-		options.port = DEFAULT_PORT
-	}
-	return options.port
-}
-
-func (options *TracerouteOptions) SetPort(port int) {
-	options.port = port
+	maxHops   int
+	timeoutMs int
+	retries   int
 }
 
 func (options *TracerouteOptions) MaxHops() int {
@@ -106,36 +149,6 @@ func (options *TracerouteOptions) SetRetries(retries int) {
 	options.retries = retries
 }
 
-func (options *TracerouteOptions) PacketSize() int {
-	if options.packetSize == 0 {
-		options.packetSize = DEFAULT_PACKET_SIZE
-	}
-	return options.packetSize
-}
-
-func (options *TracerouteOptions) SetPacketSize(packetSize int) {
-	options.packetSize = packetSize
-}
-
-// TracerouteHop type
-type TracerouteHop struct {
-	Success     bool
-	Address     [4]byte
-	N           int
-	ElapsedTime time.Duration
-	TTL         int
-}
-
-func (hop *TracerouteHop) AddressString() string {
-	return fmt.Sprintf("%v.%v.%v.%v", hop.Address[0], hop.Address[1], hop.Address[2], hop.Address[3])
-}
-
-// TracerouteResult type
-type TracerouteResult struct {
-	DestinationAddress [4]byte
-	Hops               []TracerouteHop
-}
-
 // Traceroute uses the given dest (hostname) and options to execute a traceroute
 // from your machine to the remote host.
 //
@@ -143,84 +156,101 @@ type TracerouteResult struct {
 //
 // Returns a TracerouteResult which contains an array of hops. Each hop includes
 // the elapsed time and its IP address.
-func Traceroute(dest string, options *TracerouteOptions) (result TracerouteResult, err error) {
-	result.Hops = []TracerouteHop{}
-	destAddr, err := destAddr(dest)
-	result.DestinationAddress = destAddr
-	socketAddr, err := socketAddr()
-	if err != nil {
-		return
+func Traceroute(ip net.IP, options *TracerouteOptions) Route {
+	if ip == nil {
+		return nil
 	}
+	var sendSocket int = -1
+	var err error
 
-	timeoutMs := (int64)(options.TimeoutMs())
-	tv := syscall.NsecToTimeval(1000 * 1000 * timeoutMs)
+	ip = ip.To4()
+	hops := make([]hopInfo, options.MaxHops()+1)
+	destAddr := [4]byte{ip[0], ip[1], ip[2], ip[3]}
+	ch := make(chan *hopInfo, options.MaxHops())
+	serial := true
 
-	ttl := 1
-	retry := 0
-	for {
-		//log.Println("TTL: ", ttl)
-		start := time.Now()
-
-		// Set up the socket to receive inbound packets
-		recvSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
-		if err != nil {
-			return result, err
-		}
+	for ttl := 1; ttl <= options.maxHops; ttl++ {
+		hi := &hops[ttl]
 
 		// Set up the socket to send packets out.
-		sendSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
-		if err != nil {
-			return result, err
+		if !serial || (sendSocket == -1) {
+			sendSocket, err = syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+			if err != nil {
+				log.Print("Tracert error (2): ", err)
+				continue
+			}
+			defer syscall.Close(sendSocket)
 		}
 		// This sets the current hop TTL
-		syscall.SetsockoptInt(sendSocket, 0x0, syscall.IP_TTL, ttl)
-		// This sets the timeout to wait for a response from the remote host
-		syscall.SetsockoptTimeval(recvSocket, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+		if err := syscall.SetsockoptInt(sendSocket, 0x0, syscall.IP_TTL, ttl); err != nil {
+			log.Print("Tracert error (3): ", err)
+			continue
+		}
 
-		defer syscall.Close(recvSocket)
-		defer syscall.Close(sendSocket)
+		hi.socket = sendSocket
 
-		// Bind to the local socket to listen for ICMP packets
-		syscall.Bind(recvSocket, &syscall.SockaddrInet4{Port: options.Port(), Addr: socketAddr})
+		// Signal the receiving gofunc, that we are interested in ICMP echoing this udp port
+		portInfoLock.Lock()
 
-		// Send a single null byte UDP packet
-		syscall.Sendto(sendSocket, []byte{0x0}, 0, &syscall.SockaddrInet4{Port: options.Port(), Addr: destAddr})
+		// Send a single null byte UDP packet, this allocates the port
+		if err := syscall.Sendto(sendSocket, []byte{0x0}, 0, &syscall.SockaddrInet4{Port: DEFAULT_PORT, Addr: destAddr}); err != nil {
+			portInfoLock.Unlock()
+			log.Print("Tracert error (4): ", err)
+			continue
+		}
+		addr, _ := syscall.Getsockname(sendSocket)
+		localPort := uint16(addr.(*syscall.SockaddrInet4).Port)
+		hi.port = localPort
+		hi.ttl = ttl
+		hi.reply = ch
 
-		var p = make([]byte, options.PacketSize())
-		n, from, err := syscall.Recvfrom(recvSocket, p, 0)
-		elapsed := time.Since(start)
-		if err == nil {
-			currAddr := from.(*syscall.SockaddrInet4).Addr
+		portInfo[localPort] = hi
+		portInfoLock.Unlock()
 
-			hop := TracerouteHop{Success: true, Address: currAddr, N: n, ElapsedTime: elapsed, TTL: ttl}
-
-			// TODO: this reverse lookup appears to have some standard timeout that is relatively
-			// high. Consider switching to something where there is greater control.
-			//currHost, err := net.LookupAddr(hop.AddressString())
-			//if err == nil {
-			//	hop.Host = currHost[0]
-			//}
-			//notify(hop, c)
-
-			result.Hops = append(result.Hops, hop)
-
-			ttl += 1
-			retry = 0
-
-			if ttl > options.MaxHops() || currAddr == destAddr {
-				return result, nil
+		if serial {
+			select {
+			case <-ch:
+			case <-time.After(time.Second * 5):
 			}
-		} else {
-			retry += 1
-			if retry > options.Retries() {
-				ttl += 1
-				retry = 0
-			}
-
-			if ttl > options.MaxHops() {
-				return result, nil
-			}
+			portInfoLock.Lock()
+			delete(portInfo, localPort)
+			portInfoLock.Unlock()
 		}
 
 	}
+
+	if !serial {
+	Collect:
+		for ttl := 1; ttl <= options.MaxHops(); ttl++ {
+			select {
+			case <-ch:
+				{
+				}
+			case <-time.After(time.Second * 5):
+				{
+					break Collect
+				}
+			}
+		}
+	}
+
+	// remove all unanswered entries
+	portInfoLock.Lock()
+	for _, hi := range hops[1:] {
+		delete(portInfo, hi.port)
+	}
+	portInfoLock.Unlock()
+	close(ch)
+
+	result := make(Route)
+	for i, hi := range hops[1:] {
+		if hi.ok {
+			result[i] = fmt.Sprintf("%v.%v.%v.%v", hi.addr[0], hi.addr[1], hi.addr[2], hi.addr[3])
+			if hi.addr == destAddr {
+				break
+			}
+		}
+	}
+
+	return result
 }
