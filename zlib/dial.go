@@ -16,7 +16,10 @@ package zlib
 
 import (
 	"net"
+	"net/url"
 	"time"
+
+	"golang.org/x/net/proxy"
 )
 
 type Dialer struct {
@@ -29,12 +32,19 @@ type Dialer struct {
 
 func (d *Dialer) Dial(network, address string) (*Conn, error) {
 	c := &Conn{}
-	netDialer := net.Dialer{
-		Deadline:  d.Deadline,
-		Timeout:   d.Timeout,
-		LocalAddr: d.LocalAddr,
-		KeepAlive: d.KeepAlive,
-	}
+
+	/*
+		netDialer := net.Dialer{
+			Deadline:  d.Deadline,
+			Timeout:   d.Timeout,
+			LocalAddr: d.LocalAddr,
+			KeepAlive: d.KeepAlive,
+		}
+	*/
+	tbProxyURL, _ := url.Parse("socks5://127.0.0.1:9050")
+	tbDialer, _ := proxy.FromURL(tbProxyURL, proxy.Direct)
+	netDialer := tbDialer
+
 	var err error
 	c.conn, err = netDialer.Dial(network, address)
 	return c, err

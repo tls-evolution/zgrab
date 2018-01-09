@@ -33,9 +33,10 @@ type hopInfo struct {
 var (
 	portInfo     map[uint16]*hopInfo
 	portInfoLock sync.Mutex
+	initOnce     sync.Once
 )
 
-func init() {
+func lazyInit() {
 	portInfo = make(map[uint16]*hopInfo)
 	socketAddr, err := socketAddr()
 	if err != nil {
@@ -157,6 +158,7 @@ func (options *TracerouteOptions) SetRetries(retries int) {
 // Returns a TracerouteResult which contains an array of hops. Each hop includes
 // the elapsed time and its IP address.
 func Traceroute(ip net.IP, options *TracerouteOptions) Route {
+	initOnce.Do(lazyInit)
 	if ip == nil {
 		return nil
 	}
