@@ -193,6 +193,12 @@ func init() {
 		case "TLSV13", "TLSV1.3":
 			config.TLSVersion = tls.VersionTLS13
 			tlsVersion = "TLSv1.3"
+		case "TLSV13D18", "TLSV1.3.18":
+			config.TLSVersion = tls.VersionTLS13Draft18
+			tlsVersion = "TLSv1.3.18"
+		case "TLSV13D22", "TLSV1.3.22":
+			config.TLSVersion = tls.VersionTLS13Draft22
+			tlsVersion = "TLSv1.3.22"
 		default:
 			zlog.Fatal("Invalid SSL/TLS versions")
 		}
