@@ -196,6 +196,15 @@ func init() {
 		case "TLSV13D18", "TLSV1.3.18":
 			config.TLSVersion = tls.VersionTLS13Draft18
 			tlsVersion = "TLSv1.3.18"
+		case "TLSV13D19", "TLSV1.3.19":
+			config.TLSVersion = tls.VersionTLS13Draft19
+			tlsVersion = "TLSv1.3.19"
+		case "TLSV13D20", "TLSV1.3.20":
+			config.TLSVersion = tls.VersionTLS13Draft20
+			tlsVersion = "TLSv1.3.20"
+		case "TLSV13D21", "TLSV1.3.21":
+			config.TLSVersion = tls.VersionTLS13Draft21
+			tlsVersion = "TLSv1.3.21"
 		case "TLSV13D22", "TLSV1.3.22":
 			config.TLSVersion = tls.VersionTLS13Draft22
 			tlsVersion = "TLSv1.3.22"
