@@ -28,22 +28,24 @@ type Dialer struct {
 	LocalAddr net.Addr
 	DualStack bool
 	KeepAlive time.Duration
+	Proxy     string
 }
 
 func (d *Dialer) Dial(network, address string) (*Conn, error) {
 	c := &Conn{}
 
-	/*
-		netDialer := net.Dialer{
-			Deadline:  d.Deadline,
-			Timeout:   d.Timeout,
-			LocalAddr: d.LocalAddr,
-			KeepAlive: d.KeepAlive,
-		}
-	*/
-	tbProxyURL, _ := url.Parse("socks5://127.0.0.1:9050")
-	tbDialer, _ := proxy.FromURL(tbProxyURL, proxy.Direct)
-	netDialer := tbDialer
+	var netDialer proxy.Dialer
+	netDialer = &net.Dialer{
+		Deadline:  d.Deadline,
+		Timeout:   d.Timeout,
+		LocalAddr: d.LocalAddr,
+		KeepAlive: d.KeepAlive,
+	}
+
+	if d.Proxy != "" {
+		tbProxyURL, _ := url.Parse(d.Proxy)
+		netDialer, _ = proxy.FromURL(tbProxyURL, netDialer)
+	}
 
 	var err error
 	c.conn, err = netDialer.Dial(network, address)

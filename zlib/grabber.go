@@ -138,6 +138,7 @@ func makeDialer(c *Config) func(string) (*Conn, error) {
 		deadline := time.Now().Add(timeout)
 		d := Dialer{
 			Deadline: deadline,
+			Proxy:    c.Proxy,
 		}
 		conn, err := d.Dial(proto, addr)
 		conn.maxTlsVersion = c.TLSVersion
@@ -155,6 +156,7 @@ func makeNetDialer(c *Config) func(string, string) (net.Conn, error) {
 		deadline := time.Now().Add(timeout)
 		d := Dialer{
 			Deadline: deadline,
+			Proxy:    c.Proxy,
 		}
 		conn, err := d.Dial(proto, addr)
 		conn.maxTlsVersion = c.TLSVersion

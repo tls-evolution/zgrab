@@ -139,6 +139,8 @@ func init() {
 	flag.StringVar(&config.Blacklist, "blacklist", "", "URI for CIDR blacklist")
 	flag.BoolVar(&config.TraceRoute, "traceroute", false, "Trace route information to host")
 
+	flag.StringVar(&config.Proxy, "proxy", "", "Connect through given proxy. Example: socks5://localhost:9050")
+
 	flag.Parse()
 
 	// Validate Go Runtime config
