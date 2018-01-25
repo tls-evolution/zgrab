@@ -66,6 +66,7 @@ type Config struct {
 	ChromeNoDHE                   bool
 	SafariOnly                    bool
 	SafariNoDHE                   bool
+	TLS13Measurements             bool
 	NoSNI                         bool
 	TLSExtendedRandom             bool
 	GatherSessionTicket           bool

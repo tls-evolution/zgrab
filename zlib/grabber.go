@@ -39,6 +39,8 @@ import (
 	"github.com/zmap/zgrab/ztools/telnet"
 	"github.com/zmap/zgrab/ztools/xssh"
 	"github.com/zmap/zgrab/ztools/zlog"
+
+	"github.com/zmap/zgrab/tls13measurements"
 )
 
 var ErrRedirLocalhost = errors.New("Redirecting to Localhost")
@@ -211,6 +213,9 @@ func makeTLSConfig(config *Config, urlHost string, sni string) *tls.Config {
 	if config.SafariNoDHE {
 		tlsConfig.CipherSuites = tls.SafariNoDHECiphers
 		tlsConfig.ForceSuites = true
+	}
+	if config.TLS13Measurements {
+		tls13measurements.SetupConfig(tlsConfig)
 	}
 	if config.SignedCertificateTimestampExt {
 		tlsConfig.SignedCertificateTimestampExt = true

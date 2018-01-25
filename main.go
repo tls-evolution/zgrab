@@ -115,6 +115,8 @@ func init() {
 	flag.BoolVar(&config.SafariOnly, "safari-ciphers", false, "Send Safari Ordered Cipher Suites")
 	flag.BoolVar(&config.SafariNoDHE, "safari-no-dhe-ciphers", false, "Send Safari ciphers minus DHE suites")
 
+	flag.BoolVar(&config.TLS13Measurements, "tlsm", false, "Vary Cipher Suites and Curves for TLS13Measurement experiment")
+
 	flag.BoolVar(&config.Heartbleed, "heartbleed", false, "Check if server is vulnerable to Heartbleed (implies --tls)")
 
 	flag.BoolVar(&config.GatherSessionTicket, "tls-session-ticket", false, "Send support for TLS Session Tickets and output ticket if presented")
