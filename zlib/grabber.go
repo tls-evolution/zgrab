@@ -214,9 +214,6 @@ func makeTLSConfig(config *Config, urlHost string, sni string) *tls.Config {
 		tlsConfig.CipherSuites = tls.SafariNoDHECiphers
 		tlsConfig.ForceSuites = true
 	}
-	if config.TLS13Measurements {
-		tls13measurements.SetupConfig(tlsConfig)
-	}
 	if config.SignedCertificateTimestampExt {
 		tlsConfig.SignedCertificateTimestampExt = true
 	}
@@ -274,6 +271,14 @@ func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) fun
 		var tlsConfig *tls.Config
 		if config.TLS {
 			tlsConfig = makeTLSConfig(config, urlHost, target.Domain)
+		}
+
+		var testCtx *tls13measurements.TestContext
+		if config.TLS13Measurements {
+			testCtx, err = tls13measurements.SetupConfig(tlsConfig, target.Addr, target.Domain)
+			if err != nil {
+				return err
+			}
 		}
 
 		transport := &http.Transport{
@@ -376,6 +381,9 @@ func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) fun
 					return err
 				}*/
 			config.ErrorLog.Errorf("Could not connect to remote host %s: %s", fullURL, err.Error())
+			if config.TLS13Measurements && (resp != nil) && (resp.Request != nil) {
+				testCtx.FinishTest(resp.Request.TLSHandshake, err)
+			}
 			return err
 		}
 
@@ -391,6 +399,10 @@ func makeHTTPGrabber(config *Config, grabData *GrabData, target *GrabTarget) fun
 			m := sha256.New()
 			m.Write(b.Bytes())
 			grabData.HTTP.Response.BodySHA256 = m.Sum(nil)
+		}
+
+		if config.TLS13Measurements {
+			testCtx.FinishTest(resp.Request.TLSHandshake, nil)
 		}
 
 		return nil
