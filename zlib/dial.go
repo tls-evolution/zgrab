@@ -17,7 +17,10 @@ package zlib
 import (
 	"net"
 	"net/url"
+	"syscall"
 	"time"
+
+	"github.com/zmap/zgrab/ztools/blacklist"
 
 	"golang.org/x/net/proxy"
 )
@@ -34,12 +37,28 @@ type Dialer struct {
 func (d *Dialer) Dial(network, address string) (*Conn, error) {
 	c := &Conn{}
 
+	if host, _, err := net.SplitHostPort(address); err == nil {
+		if blacklist.IsBlacklistedDom(host) {
+			return &Conn{}, blacklist.BlacklistError
+		}
+	}
+
 	var netDialer proxy.Dialer
 	netDialer = &net.Dialer{
 		Deadline:  d.Deadline,
 		Timeout:   d.Timeout,
 		LocalAddr: d.LocalAddr,
 		KeepAlive: d.KeepAlive,
+		Control: func(network, address string, c syscall.RawConn) error {
+			if sip, _, err := net.SplitHostPort(address); err == nil {
+				ip := net.ParseIP(sip)
+				if blacklist.IsBlacklisted(ip) {
+					return blacklist.BlacklistError
+				}
+			}
+
+			return nil
+		},
 	}
 
 	if d.Proxy != "" {

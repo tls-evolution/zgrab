@@ -30,6 +30,7 @@ import (
 	"github.com/zmap/zcrypto/tls"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zgrab/zlib"
+	"github.com/zmap/zgrab/ztools/blacklist"
 	"github.com/zmap/zgrab/ztools/processing"
 	"github.com/zmap/zgrab/ztools/zlog"
 )
@@ -405,6 +406,8 @@ func main() {
 			}
 		}()
 	}
+
+	blacklist.Init(config.Blacklist)
 
 	decoder := zlib.NewGrabTargetDecoder(inputFile, config.LookupDomain)
 	marshaler := zlib.NewGrabMarshaler()

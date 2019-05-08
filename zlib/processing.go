@@ -72,13 +72,8 @@ func (g *GrabWorker) MakeHandler() processing.Handler {
 			}()
 			g.config.ErrorLog.Infof("Starting %s", target.Domain)
 		*/
-		var grab *Grab
-		if g.config.Blacklist != "" {
-			grab = GrabBlacklist(g.config, &target)
-		}
-		if grab == nil {
-			grab = GrabBanner(g.config, &target)
-		}
+
+		grab := GrabBanner(g.config, &target)
 		s := grab.status()
 		if g.config.TraceRoute && (s == status_failure || true) {
 			if grab.Data.HTTP != nil && grab.Data.HTTP.Response != nil && grab.Data.HTTP.Response.AddressUsed.IP != nil {
