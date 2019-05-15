@@ -113,11 +113,13 @@ func reload(file string, f func(string)) {
 }
 
 func initMonitoredFile(file string, f func(string)) {
-	touch(file)
-	reload(file, f)
-	go func() {
-		monitorFile(file, func() { reload(file, f) })
-	}()
+	if file != "" {
+		touch(file)
+		reload(file, f)
+		go func() {
+			monitorFile(file, func() { reload(file, f) })
+		}()
+	}
 }
 
 func Init(fileIP string, fileDom string) {
