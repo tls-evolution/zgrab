@@ -140,6 +140,8 @@ func init() {
 	flag.IntVar(&config.SMB.Protocol, "smb-protocol", 1, "Specify which SMB protocol to scan for")
 
 	flag.StringVar(&config.Blacklist, "blacklist", "", "URI for CIDR blacklist")
+	flag.StringVar(&config.BlacklistDom, "blacklist-dom", "", "File for Domain blacklist")
+
 	flag.BoolVar(&config.TraceRoute, "traceroute", false, "Trace route information to host")
 
 	flag.StringVar(&config.Proxy, "proxy", "", "Connect through given proxy. Example: socks5://localhost:9050")
@@ -407,7 +409,7 @@ func main() {
 		}()
 	}
 
-	blacklist.Init(config.Blacklist)
+	blacklist.Init(config.Blacklist, config.BlacklistDom)
 
 	decoder := zlib.NewGrabTargetDecoder(inputFile, config.LookupDomain)
 	marshaler := zlib.NewGrabMarshaler()

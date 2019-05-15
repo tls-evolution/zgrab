@@ -132,6 +132,8 @@ type Config struct {
 
 	Blacklist string
 
+	BlacklistDom string
+
 	TraceRoute bool
 
 	Proxy string

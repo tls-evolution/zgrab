@@ -3,12 +3,16 @@ package blacklist
 import (
 	"bufio"
 	"errors"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 
 	"github.com/zmap/zgrab/ztools/zlog"
 )
@@ -49,28 +53,20 @@ func updateBlacklist(blacklist string) {
 	}
 }
 
-func updateBlacklistDom() {
+func updateBlacklistDom(data string) {
 	domLock.Lock()
 	defer domLock.Unlock()
-	data := BLACKLIST_DATA // query this from server
 
 	entrys := strings.Split(data, "\n")
 	var exp string
+	exp = "(^$)" // prevent always matching if no entries are given
 	for _, entry := range entrys {
 		ereal := strings.TrimSpace(strings.SplitN(entry, "#", 2)[0])
 		if len(ereal) > 0 {
-			ieof := strings.IndexRune(ereal, '$')
-			if ieof >= 0 {
-				ereal = ".*" + ereal[0:ieof]
-			} else {
-				ereal = ".*" + ereal + ".*"
-			}
 			exp = exp + "|(" + ereal + ")"
 		}
 	}
-	if len(exp) > 0 {
-		exp = exp[1:]
-	}
+
 	if rex, err := regexp.CompilePOSIX(exp); err == nil {
 		domRex = rex
 	} else {
@@ -78,18 +74,71 @@ func updateBlacklistDom() {
 	}
 }
 
-func Init(uriIP string) {
+func touch(file string) {
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0755)
+	if err == nil {
+		f.Close()
+	}
+}
+
+func monitorFile(file string, f func()) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		zlog.Fatal(err)
+	}
+	defer watcher.Close()
+
+	err = watcher.Add(file)
+	if err != nil {
+		zlog.Fatal(err)
+	}
+
+	for event := range watcher.Events {
+		if event.Op&fsnotify.Write == fsnotify.Write {
+			f()
+		}
+	}
+}
+
+func reload(file string, f func(string)) {
+	zlog.Info("Reloading blacklist: " + file)
+	dat, err := ioutil.ReadFile(file)
+	if err != nil {
+		zlog.Warn("Could not reload " + file + ". Retrying in one Minute.")
+		go func() {
+			time.Sleep(time.Minute)
+			dat, err = ioutil.ReadFile(file)
+			if err != nil {
+				zlog.Warn("Could not reload " + file + " during retry, giving up.")
+			} else {
+				f(string(dat))
+			}
+		}()
+	} else {
+		f(string(dat))
+	}
+}
+
+func initMonitoredFile(file string, f func(string)) {
+	touch(file)
+	reload(file, f)
+	go func() {
+		monitorFile(file, func() { reload(file, f) })
+	}()
+}
+
+func Init(uriIP string, fileDom string) {
 	once.Do(func() {
 		updateBlacklist(uriIP)
-		updateBlacklistDom()
 		ticker := time.NewTicker(time.Hour * 24)
 		go func() {
 			for _ = range ticker.C {
-				// reload the blacklists
+				// reload the IP blacklist
 				updateBlacklist(uriIP)
-				updateBlacklistDom()
 			}
 		}()
+
+		initMonitoredFile(fileDom, updateBlacklistDom)
 	})
 }
 
