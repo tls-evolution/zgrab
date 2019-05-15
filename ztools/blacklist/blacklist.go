@@ -29,6 +29,7 @@ func updateBlacklistIP(data string) {
 	defer ipLock.Unlock()
 
 	entrys := strings.Split(data, "\n")
+	blacklistNets = nil
 
 	for _, entry := range entrys {
 		addr := strings.TrimSpace(strings.SplitN(entry, "#", 2)[0])
