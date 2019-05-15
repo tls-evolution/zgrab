@@ -1,11 +1,9 @@
 package blacklist
 
 import (
-	"bufio"
 	"errors"
 	"io/ioutil"
 	"net"
-	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -26,20 +24,14 @@ var (
 	domRex         *regexp.Regexp
 )
 
-func updateBlacklist(blacklist string) {
+func updateBlacklistIP(data string) {
 	ipLock.Lock()
 	defer ipLock.Unlock()
 
-	response, err := http.Get(blacklist)
-	if err != nil {
-		return // no blacklist active
-	}
+	entrys := strings.Split(data, "\n")
 
-	scanner := bufio.NewScanner(response.Body)
-	scanner.Split(bufio.ScanLines)
-
-	for scanner.Scan() {
-		addr := strings.TrimSpace(strings.SplitN(scanner.Text(), "#", 2)[0])
+	for _, entry := range entrys {
+		addr := strings.TrimSpace(strings.SplitN(entry, "#", 2)[0])
 
 		if addr == "" {
 			continue
@@ -127,17 +119,9 @@ func initMonitoredFile(file string, f func(string)) {
 	}()
 }
 
-func Init(uriIP string, fileDom string) {
+func Init(fileIP string, fileDom string) {
 	once.Do(func() {
-		updateBlacklist(uriIP)
-		ticker := time.NewTicker(time.Hour * 24)
-		go func() {
-			for _ = range ticker.C {
-				// reload the IP blacklist
-				updateBlacklist(uriIP)
-			}
-		}()
-
+		initMonitoredFile(fileIP, updateBlacklistIP)
 		initMonitoredFile(fileDom, updateBlacklistDom)
 	})
 }

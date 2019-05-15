@@ -130,7 +130,7 @@ type Config struct {
 
 	KeylogFile *bufio.Writer
 
-	Blacklist string
+	BlacklistIP string
 
 	BlacklistDom string
 
