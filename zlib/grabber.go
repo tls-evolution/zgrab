@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/zmap/zcrypto/tls"
+	"github.com/zmap/zgrab/ztools/blacklist"
 	"github.com/zmap/zgrab/ztools/ftp"
 	"github.com/zmap/zgrab/ztools/http"
 	"github.com/zmap/zgrab/ztools/processing"
@@ -673,6 +674,19 @@ func makeXSSHGrabber(gblConfig *Config, grabData GrabData) func(string) error {
 }
 
 func GrabBanner(config *Config, target *GrabTarget) *Grab {
+	if blacklist.IsBlacklistedDom(target.Domain) || blacklist.IsBlacklisted(target.Addr) {
+		return &Grab{
+			IP:             target.Addr,
+			Domain:         target.Domain,
+			Time:           time.Now(),
+			Error:          blacklist.BlacklistError,
+			ErrorComponent: "connect",
+			ComsysSource:   target.ComsysSource,
+			ComsysDate:     target.ComsysDate,
+			ComsysInput:    target.ComsysInput,
+		}
+	}
+
 	if config.XSSH.XSSH {
 		t := time.Now()
 
